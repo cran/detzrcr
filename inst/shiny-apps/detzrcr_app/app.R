@@ -212,11 +212,19 @@ server <- shiny::shinyServer(function(input, output) {
   likeness_table <- shiny::reactive({
     new_data <- csv_data()
     if (!is.null(new_data)) {
+      constants <- c(
+        input$lambda_lu,
+        input$hfhf_chur,
+        input$luhf_chur,
+        input$hfhf_dm,
+        input$luhf_dm,
+        input$luhf_zrc
+      )
       if (input$likeness_type == '1d') {
         satkoski_1d_matrix(new_data, bw=input$likeness_age_bw)
       } else {
         if (input$likeness_type == '2d') {
-          hf_data <- calc_hf(new_data)
+          hf_data <- calc_hf(new_data, constants=constants)
           satkoski_2d_matrix(hf_data, bw=c(input$likeness_age_bw,
                                            input$likeness_ehf_bw))
         }
@@ -226,11 +234,19 @@ server <- shiny::shinyServer(function(input, output) {
   o_table <- shiny::reactive({
     new_data <- csv_data()
     if (!is.null(new_data)) {
+      constants <- c(
+        input$lambda_lu,
+        input$hfhf_chur,
+        input$luhf_chur,
+        input$hfhf_dm,
+        input$luhf_dm,
+        input$luhf_zrc
+      )
       if (input$o_type == 'age') {
         o_param_matrix_age(new_data)
       } else {
         if (input$o_type == 'tdm') {
-          hf_data <- calc_hf(new_data)
+          hf_data <- calc_hf(new_data, constants=constants)
           o_param_matrix_tdm(hf_data)
         }
       }
@@ -288,8 +304,16 @@ server <- shiny::shinyServer(function(input, output) {
     new_data <- csv_data()
     if (!is.null(new_data)) {
       mult_ecdf <- NULL
+      constants <- c(
+        input$lambda_lu,
+        input$hfhf_chur,
+        input$luhf_chur,
+        input$hfhf_dm,
+        input$luhf_dm,
+        input$luhf_zrc
+      )
       if (input$ecdf_input_type == 't_dm2') {
-        new_data <- calc_hf(new_data)
+        new_data <- calc_hf(new_data, constants=constants)
       }
       if (input$ecdf_type == 'ind_plot') {
         mult_ecdf <- FALSE
@@ -383,7 +407,7 @@ server <- shiny::shinyServer(function(input, output) {
   # Output
   output$head <- shiny::renderTable({
     new_data <- csv_data()
-    head(new_data)
+    utils::head(new_data)
   })
   output$dens_plot <- shiny::renderPlot({
     print(dens_plot())
@@ -423,7 +447,7 @@ server <- shiny::shinyServer(function(input, output) {
       paste('likeness', '.csv', sep='')
     },
     content = function(file) {
-      write.csv(likeness_table(), file)
+      utils::write.csv(likeness_table(), file)
     }
   )
   output$download_satkoski_2d <- shiny::downloadHandler(
@@ -431,7 +455,7 @@ server <- shiny::shinyServer(function(input, output) {
       paste('L2', '.csv', sep='')
     },
     content = function(file) {
-      write.csv(satkoski_2d_table(), file)
+      utils::write.csv(satkoski_2d_table(), file)
     }
   )
   output$download_o_table <- shiny::downloadHandler(
@@ -439,7 +463,7 @@ server <- shiny::shinyServer(function(input, output) {
       paste('otable', '.csv', sep='')
     },
     content = function(file) {
-      write.csv(o_table(), file)
+      utils::write.csv(o_table(), file)
     }
   )
   output$download_hf_table <- shiny::downloadHandler(
@@ -447,7 +471,7 @@ server <- shiny::shinyServer(function(input, output) {
       paste('hf', '.csv', sep='')
     },
     content = function(file) {
-      write.csv(hf_table(), file)
+      utils::write.csv(hf_table(), file)
     }
   )
   output$dens_facet_select <- shiny::renderUI({
