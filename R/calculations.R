@@ -4,12 +4,13 @@
 #' discordancy limit.
 #'
 #' @param dat data.frame containing at least ages and percentage of discordancy
-#' @param llim Lower disconcordancy limit
-#' @param ulim Upper disconcordancy limit
+#' @param disc_lim Discordancy limit
 #' @return Concordant data
 #' @export
-check_conc <- function(dat, llim=-10, ulim=10) {
+check_conc <- function(dat, disc_lim = 10) {
   if ('disc' %in% names(dat)) {
+    llim <- -disc_lim
+    ulim <- disc_lim
     conc <- dat[(dat$disc >= llim & dat$disc <= ulim), ]
   } else {
     stop('Requires column with name disc')
@@ -149,15 +150,21 @@ satkoski_1d <- function(x, y, bw=30, digits=3) {
 #' age frequency data in time and space. GSA Bulletin 125, 1783-1799.
 #' @export
 satkoski_2d <- function(x, y, bw=c(30, 2.5), digits=3) {
-  n <- 100
-  bw <- bw * 4
-  lims <- c(0, 4560, -30, 30)
-  a <- MASS::kde2d(x=x$age, y=x$ehf_i, h=bw, n=n, lims=lims)$z
-  b <- MASS::kde2d(x=y$age, y=y$ehf_i, h=bw, n=n, lims=lims)$z
-  a <- a / sum(a)
-  b <- b / sum(b)
-  L <- 1 - (sum(abs(a - b)) / 2)
-  round(L, digits)
+  if (all(is.na(x$ehf_i)) | all(is.na(y$ehf_i))) {
+    return(NA)
+  } else {
+    n <- 100
+    bw <- bw * 4
+    lims <- c(0, 4560, -30, 30)
+    x <- x[!is.na(x$ehf_i), ]
+    y <- y[!is.na(y$ehf_i), ]
+    a <- MASS::kde2d(x=x$age, y=x$ehf_i, h=bw, n=n, lims=lims)$z
+    b <- MASS::kde2d(x=y$age, y=y$ehf_i, h=bw, n=n, lims=lims)$z
+    a <- a / sum(a)
+    b <- b / sum(b)
+    L <- 1 - (sum(abs(a - b)) / 2)
+    round(L, digits)
+  }
 }
 
 #' Pairwise Satkoski likeness
@@ -201,11 +208,12 @@ satkoski_2d_matrix <- function(dat, bw=c(30, 2.5), digits=3) {
 #' @export
 populate_matrix <- function(dat, FUN, ...) {
   n <- length(unique(dat$sample))
+  if (n < 2) stop('Select more samples')
   name <- as.character(unique(dat$sample))
   len <- length(name)
-  mat <- as.data.frame(matrix(nrow=n, ncol=n))
-  names(mat) <- name
-  row.names(mat) <- name
+  mat <- matrix(nrow=n, ncol=n)
+  colnames(mat) <- name
+  rownames(mat) <- name
   for (i in 1:(len - 1)) {
     for (j in 2:len) {
       if (!(i == j) & ((is.na(mat[i, j])) | is.na(mat[j, i]))) {
@@ -308,13 +316,18 @@ calc_dkw <- function(dat, column='age', alpha=0.05) {
     sample_name <- NA
   }
   x <- dat[, column]
+  x <- x[!is.na(x)]
   y <- stats::ecdf(x)(sort(x))
   n <- length(x)
+  x <- c(0, sort(x), 4560)
+  y <- c(0, y, 1)
+  x_out <- seq(0, 4560)
+  y <- stats::approx(x, y, xout=x_out)$y
   epsilon <- sqrt(log(2 / alpha) / (2 * n))
   low <- pmax(y - epsilon, 0)
   high <- pmin(y + epsilon, 1)
-  sample <- rep(sample_name, n)
-  data.frame(x=sort(x), y=y, low=low, high=high, sample=sample)
+  sample <- rep(sample_name, length(x_out))
+  data.frame(x=x_out, y=y, low=low, high=high, sample=sample)
 }
 
 #' Calculate 1-O
@@ -332,28 +345,45 @@ calc_dkw <- function(dat, column='age', alpha=0.05) {
 #' in eastern South Africa. J. Geol. Soc. London. 2006-2015.
 #' doi:10.1144/jgs2015-006
 #'
-calc_o_param <- function(dat1, dat2, column, alpha=0.05, digits=3) {
+calc_o_param <- function(dat1, dat2, column, alpha=0.05, digits=2) {
   x <- dat1[, column]
   y <- dat2[, column]
-  length_x <- length(x)
-  length_y <- length(y)
-  epsilon_one <-sqrt(log(2 / alpha) / (2 * length_x))
-  epsilon_two <- sqrt(log(2 / alpha) / (2 * length_y))
-  delta <- epsilon_one + epsilon_two
-  x_sort <- sort(x)
-  x_y <- stats::ecdf(x_sort)(x_sort)
-  y_sort <- sort(y)
-  y_y <- stats::ecdf(y_sort)(y_sort)
-  x_sort <- c(0, x_sort, 4560)
-  x_y <- c(0, x_y, 1)
-  y_sort <- c(0, y_sort, 4560)
-  y_y <- c(0, y_y, 1)
-  x_out <- seq(0, 4560)
-  interpolated_one <- stats::approx(x_sort, x_y, xout=x_out)$y
-  interpolated_two <- stats::approx(y_sort, y_y, xout=x_out)$y
-  absolute <- pmax((abs(interpolated_one - interpolated_two) - delta), 0)
-  absolute <- absolute[absolute != 0]
-  round(1 - length(absolute) / length(x_out), digits)
+  if (all(is.na(x)) | all(is.na(y))) {
+    return(NA)
+  }
+  else {
+    epsilon_one <- sqrt(log(2 / alpha) / (2 * length(x)))
+    epsilon_two <- sqrt(log(2 / alpha) / (2 * length(y)))
+    x_sort <- sort(x)
+    x_y <- stats::ecdf(x_sort)(x_sort)
+    y_sort <- sort(y)
+    y_y <- stats::ecdf(y_sort)(y_sort)
+    x_sort <- c(0, x_sort, 4560)
+    x_y <- c(0, x_y, 1)
+    y_sort <- c(0, y_sort, 4560)
+    y_y <- c(0, y_y, 1)
+    x_out <- seq(0, 4560)
+    interpolated_one <- stats::approx(x_sort, x_y, xout=x_out)$y
+    interpolated_two <- stats::approx(y_sort, y_y, xout=x_out)$y
+    interpolated_one_low <- pmax(interpolated_one - epsilon_one, 0)
+    interpolated_one_up <- pmin(interpolated_one + epsilon_one, 1)
+    interpolated_two_low <- pmax(interpolated_two - epsilon_two, 0)
+    interpolated_two_up <- pmin(interpolated_two + epsilon_two, 1)
+    up <- ifelse((((interpolated_two_up <= interpolated_one_up) &
+                     (interpolated_two_up >= interpolated_one_low)) |
+                    ((interpolated_one_up <= interpolated_two_up) &
+                       (interpolated_one_up >= interpolated_two_low))), 1, 0)
+    low <- ifelse((((interpolated_two_low >= interpolated_one_low) &
+                      (interpolated_two_low <= interpolated_one_up)) |
+                     ((interpolated_one_low >= interpolated_two_low) &
+                        (interpolated_one_low <= interpolated_two_up))), 1, 0)
+    O <- (length(up[up == 1]) + length(low[low == 1])) / (2 * length(x_out))
+    round(1 - O, digits)
+  }
+  # delta <- epsilon_one + epsilon_two
+  # absolute <- pmax((abs(interpolated_one - interpolated_two) - delta), 0)
+  # absolute <- absolute[absolute != 0]
+  # round(1- (1 - length(absolute) / length(x_out)), digits)
 }
 
 #' Populate matrix with age 1-O
@@ -368,7 +398,7 @@ calc_o_param <- function(dat1, dat2, column, alpha=0.05, digits=3) {
 #' U-Pb and LuHf zircon data in young sediments reflect sedimentary recycling
 #' in eastern South Africa. J. Geol. Soc. London. 2006-2015.
 #' doi:10.1144/jgs2015-006
-o_param_matrix_age <- function(dat, alpha=0.05, digits=3) {
+o_param_matrix_age <- function(dat, alpha=0.05, digits=2) {
   populate_matrix(dat, FUN=calc_o_param, column='age', alpha=alpha,
                   digits=digits)
 }
@@ -385,9 +415,22 @@ o_param_matrix_age <- function(dat, alpha=0.05, digits=3) {
 #' U-Pb and Lu-Hf zircon data in young sediments reflect sedimentary recycling
 #' in eastern South Africa. J. Geol. Soc. London. 2006-2015.
 #' doi:10.1144/jgs2015-006
-o_param_matrix_tdm <- function(dat, alpha=0.05, digits=3) {
+o_param_matrix_tdm <- function(dat, alpha=0.05, digits=2) {
   populate_matrix(dat, FUN=calc_o_param, column='t_dm2', alpha=alpha,
                   digits=digits)
+}
+
+#' Combine two square matrices
+#'
+#' @param mat1 Matrix for upper triangle
+#' @param mat2 Matrix for lower triangle
+#'
+#' @export
+#'
+combine_matrices <- function(mat1, mat2) {
+  mat1[lower.tri(mat1)] <- NA
+  mat1[is.na(mat1)] <- mat2[is.na(mat1)]
+  mat1
 }
 
 #' Produce CHUR and DM lines
@@ -455,7 +498,7 @@ hf_lines <- function(range=c(0, 4560), plot_type='ehf', constants) {
 calc_quantiles <- function(dat, column='t_dm2', alpha=0.05, type=8) {
   x <- dat[, column]
   quantiles <- stats::aggregate(x=x, by=list(dat$sample),
-                                FUN=stats::quantile, type=type)
+                                FUN=stats::quantile, type=type, na.rm=TRUE)
   x <- as.data.frame(quantiles$x)
   x$iqr <- x$`75%` - x$`25%`
   x$sample <- quantiles$Group.1
@@ -474,23 +517,27 @@ calc_quantiles <- function(dat, column='t_dm2', alpha=0.05, type=8) {
 #'
 quant_bounds <- function(dat, column='t_dm2', alpha=0.05) {
   column <- dat[, column]
-  sort_column <- sort(column)
-  y <- stats::ecdf(column)(sort(column))
-  epsilon <- sqrt(log(2 / alpha) / (2 * length(column)))
-  low <- pmax(y - epsilon, 0)
-  high <- pmin(y + epsilon, 1)
-  sort_age_low <- data.frame(x=sort(column), y=low)
-  sort_age_high <- data.frame(x=sort(column), y=high)
-  ll <- stats::approx(x=sort_age_low$y, y=sort_age_low$x, xout=c(0.25))$y
-  lu <- stats::approx(x=sort_age_low$y, y=sort_age_low$x, xout=c(0.75))$y
-  if(is.na(lu)) lu <- max(sort_age_low$x)
-  ul <- stats::approx(x=sort_age_high$y, y=sort_age_high$x, xout=c(0.25))$y
-  if(is.na(ul)) ul <- min(sort_age_high$x)
-  uu <- stats::approx(x=sort_age_high$y, y=sort_age_high$x, xout=c(0.75))$y
-  lq_dist <- stats::quantile(column, probs=c(0.25), type=8)
-  uq_dist <- stats::quantile(column, probs=c(0.75), type=8)
   sample <- dat$sample[1]
-  data.frame(x=lq_dist, y=uq_dist, ymin=ll, ymax=lu, xmin=ul, xmax=uu, sample)
+  if (all(is.na(column))) {
+    data.frame(x=NA, y=NA, ymin=NA, ymax=NA, xmin=NA, xmax=NA, sample=sample)
+  } else {
+    sort_column <- sort(column)
+    y <- stats::ecdf(column)(sort(column))
+    epsilon <- sqrt(log(2 / alpha) / (2 * length(column)))
+    low <- pmax(y - epsilon, 0)
+    high <- pmin(y + epsilon, 1)
+    sort_age_low <- data.frame(x=sort(column), y=low)
+    sort_age_high <- data.frame(x=sort(column), y=high)
+    ll <- stats::approx(x=sort_age_low$y, y=sort_age_low$x, xout=c(0.25))$y
+    lu <- stats::approx(x=sort_age_low$y, y=sort_age_low$x, xout=c(0.75))$y
+    if(is.na(lu)) lu <- max(sort_age_low$x)
+    ul <- stats::approx(x=sort_age_high$y, y=sort_age_high$x, xout=c(0.25))$y
+    if(is.na(ul)) ul <- min(sort_age_high$x)
+    uu <- stats::approx(x=sort_age_high$y, y=sort_age_high$x, xout=c(0.75))$y
+    lq_dist <- stats::quantile(column, probs=c(0.25), type=8, na.rm=TRUE)
+    uq_dist <- stats::quantile(column, probs=c(0.75), type=8, na.rm=TRUE)
+    data.frame(x=lq_dist, y=uq_dist, ymin=ll, ymax=lu, xmin=ul, xmax=uu, sample)
+  }
 }
 
 #' Calculate mixing model
@@ -526,4 +573,73 @@ dzr_mix <- function(mu1, sig1, mu2, sig2) {
     }
   }
   data.frame(lq=rowMeans(lq), uq=rowMeans(uq))
+}
+
+#' Ready 1-O matrix for tile plot
+#'
+#' @param x 1-O parameter vector
+#'
+#' @export
+tile_func <- function(x) {
+  if (is.na(x)) {
+    return(NA)
+  }
+  if (x >= 0.05) {
+    return(2)
+  }
+  if (x > 0 & x < 0.05) {
+    return(1)
+  } else {
+    return(x)
+  }
+}
+
+#' Apply tile_func to vector
+#'
+#' @param z 1-O parameter vector
+#'
+#' @export
+#'
+tiling <- function(z) {
+  sapply(z, tile_func)
+}
+
+#' Produce data.frame of 1-O matrix suitable for geom_tile
+#'
+#' @param dat data.frame
+#' @param type What to calculate
+#'
+#' @export
+#'
+make_tiling <- function(dat, type) {
+  if (type == 'age') {
+    mat <- o_param_matrix_age(dat)
+    mat <- mat[, rev(seq_len(ncol(mat)))]
+    tile_mat <- data.frame(x=rownames(mat)[row(mat)], y=colnames(mat)[col(mat)],
+                           z=as.factor(tiling(c(mat))))
+    tile_mat$x <- factor(tile_mat$x, levels=rownames(mat))
+    tile_mat$y <- factor(tile_mat$y, levels=colnames(mat))
+  }
+  if (type == 'tdm') {
+    mat <- o_param_matrix_tdm(dat)
+    mat <- mat[, rev(seq_len(ncol(mat)))]
+    tile_mat <- data.frame(x=rownames(mat)[row(mat)], y=colnames(mat)[col(mat)],
+                           z=as.factor(tiling(c(mat))))
+    tile_mat$x <- factor(tile_mat$x, levels=rownames(mat))
+    tile_mat$y <- factor(tile_mat$y, levels=colnames(mat))
+  }
+  if (type == 'combine') {
+    mat_age <- o_param_matrix_age(dat)
+    mat_tdm <- o_param_matrix_tdm(dat)
+    mat_age[lower.tri(mat_age)] <- NA
+    mat <- mat_age
+    mat[is.na(mat)] <- mat_tdm[is.na(mat)]
+    mat <- t(mat)
+    mat <- mat[, rev(seq_len(ncol(mat)))]
+    tile_mat <- data.frame(x=rownames(mat)[row(mat)], y=colnames(mat)[col(mat)],
+                           z=as.factor(tiling(c(mat))))
+    tile_mat$x <- factor(tile_mat$x, levels=rownames(mat))
+    tile_mat$y <- factor(tile_mat$y, levels=colnames(mat))
+  }
+  tile_mat
 }
