@@ -258,6 +258,7 @@ calc_hf <- function(dat, constants) {
   hfhf_dm <- constants[4]
   luhf_dm <- constants[5]
   luhf_zrc <- constants[6]
+  if (!('hfhf' %in% names(dat))) return(dat)
   if (is.vector(dat) || ncol(dat) < 3) {
     stop('Data must contain at least three columns')
   }
