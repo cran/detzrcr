@@ -401,3 +401,16 @@ plot_tile <- function(dat, type) {
     ggplot2::scale_x_discrete(expand=c(0, 0)) +
     ggplot2::scale_y_discrete(expand=c(0, 0))
 }
+
+#' Plot likelihood of intercept ages
+#'
+#' @param dat data.frame
+#'
+#' @export
+#'
+plot_reimink <- function(dat) {
+  gplot <- ggplot2::ggplot(data=dat, ggplot2::aes_string(x='x', y='y',
+                                                         color='type')) +
+    ggplot2::geom_line() + ggplot2::geom_point() + plot_bw_theme() +
+    plot_labels(xlab='Age (Ma)', ylab = 'Likelihood')
+}

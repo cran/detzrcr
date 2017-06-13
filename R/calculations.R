@@ -58,7 +58,7 @@ calc_dens <- function(dat, bw=30, type='kde', age_range=c(0, 4560)) {
 #'
 #' @param dat data.frame
 #' @param binwidth Histogram binwidth
-#' @param bw Density Bandwith
+#' @param bw Density bandwidth
 #' @param type 'kde': KDE; 'pdd': detrital zircon PDD
 #' @param age_range Age range to calculated density over
 #'
@@ -79,7 +79,7 @@ calc_dens_hist <- function(dat, binwidth=50, bw=30, type='kde',
 
 #' Find minimum value for plotting
 #'
-#' Find the minumum value for histogram plotting.
+#' Find the minimum value for histogram plotting.
 #'
 #' @param x vector of values
 #' @param accuracy round to nearest
@@ -114,8 +114,8 @@ find_plot_min_max <- function(x, accuracy=100) {
 
 #' Calculate 1d likeness of detrital zircon populations
 #'
-#' Calculates the likeness of detrital zircon populations in 1 dimenson after
-#' Satoski et al. (2013).
+#' Calculates the likeness of detrital zircon populations in 1 dimension after
+#' Satkoski et al. (2013).
 #'
 #' @param x vector
 #' @param y vector
@@ -137,7 +137,7 @@ satkoski_1d <- function(x, y, bw=30, digits=3) {
 
 #' Calculate 2d (age and Lu-Hf) likeness of detrital zircon populations
 #'
-#' Calculates the likeness of detrital zircon populationsin 2 dimensions after
+#' Calculates the likeness of detrital zircon populations in 2 dimensions after
 #' Satoski et al. (2013).
 #'
 #' @param x vector
@@ -453,7 +453,7 @@ combine_matrices <- function(mat1, mat2) {
 #' LAM-MC-ICPMS analysis of zircon megacrysts in kimberlites.
 #' Geochimica et Cosmochimica Acta 64(1), 133-147.
 #' @references Soderlund, U., Jonathan Patchett, P., Vervoort, J.D. and Isachsen
-#' C.E. 2004. The 176Lu decay constant determined by Lu^Hf and U^Pb isotope
+#' C.E. 2004. The 176Lu decay constant determined by Lu-Hf and U-Pb isotope
 #' systematics of Precambrian mafic intrusions. Earth and Planetary Science
 #' Letters 219, 311-324.
 #' @references Bouvier, A., Vervoort, J.D. and Jonathan Patchett P. 2008. The
@@ -643,4 +643,129 @@ make_tiling <- function(dat, type) {
     tile_mat$y <- factor(tile_mat$y, levels=colnames(mat))
   }
   tile_mat
+}
+
+#' Calculate upper and lower concordia intercepts from discordant detrital
+#' zircon data
+#'
+#' @param dat data.frame
+#' @param step Chord spacing
+#'
+#' @export
+#'
+#' @references Reimink, J.R., Davies, J.H.F.L., Waldron, J.W.F., Rojas, X.
+#' (2016). Dealing with discordance: a novel approach for analysing U-Pb
+#' detrital zircon datasets. Journal of the Geological Society.
+#' doi: 10.1144/jgs2015-114
+#'
+reimink <- function(dat, step=5) {
+  t1 <- seq(0, 4500 - step, step)
+  t2 <- seq(step, 4500, step)
+  grid <- expand.grid(t1, t2)
+  grid <- grid[grid$Var2 > grid$Var1,]
+  dat$sigma75 <- mean(dat$sigma75)
+  dat$sigma68 <- mean(dat$sigma68)
+  result <- calc_p_apply(dat, grid$Var2, grid$Var1)
+  lower <- stats::aggregate(result$p_disc, by=list(result$t1), max)
+  upper <- stats::aggregate(result$p_disc, by=list(result$t2), max)
+  names(lower) <- c('x', 'y')
+  names(upper) <- c('x', 'y')
+  lower$x <- as.numeric(as.character(lower$x))
+  upper$x <- as.numeric(as.character(upper$x))
+  lower$type <- rep('lower', nrow(lower))
+  upper$type <- rep('upper', nrow(upper))
+  out <- rbind(lower, upper)
+}
+
+
+#' Calculate intercepts and associated p-value
+#'
+#' @param dat data.frame
+#' @param t2 upper intercept age
+#' @param t1 lower intercept age
+#'
+#' @export
+#'
+calc_p_apply <- function(dat, t2, t1) {
+  lambda238 <- 1.55125 * (10^-10)
+  X <- dat$r75
+  Y <- dat$r68
+  sigma75 <- dat$sigma75
+  sigma68 <- dat$sigma68
+  rho <- dat$rho
+  age <- dat$age * 10^6
+  disc <- 1 - (Y / ((exp(lambda238 * age)-1)))
+  ab <- calc_ab(t2, t1)
+  slope <- ab$a
+  yintercept <- ab$b
+  n <- nrow(dat)
+  p_disc <- rep(NA, length(slope))
+  for (i in seq_len(length(slope))) {
+    S <- atan2((2 * rho * sigma75 * sigma68) / (sigma75^2 - sigma68^2), 2)
+    a <- ((slope[i] * cos(S)) - sin(S)) / (cos(S) + (slope[i] * sin(S)))
+    b <- (yintercept[i] + (slope[i] * X) - Y) / (cos(S) + (slope[i] * sin(S)))
+    B <- (sigma75 / sigma68) * a
+    A <- b / sigma68
+    p <- (1 / (2 * pi * sigma75 * sigma68)) * exp(-0.5 * (A^2 / (1 + B^2)))
+    p <- p / n
+    p_disc[i] <- sum(p * disc)
+  }
+  return(data.frame(t1, t2, p_disc))
+}
+
+
+#' Calculate slope and intercept
+#'
+#' @param t2 upper intercept
+#' @param t1 lower intercept
+#'
+#' @export
+#'
+calc_ab <- function (t2, t1) {
+  y2 <- concY(t2)
+  y1 <- concY(t1)
+  x2 <- concX(t2)
+  x1 <- concX(t1)
+  a = (y2 - y1) / (x2 - x1)
+  b = y2 - a * x2
+  ab <- data.frame(a=a, b=b)
+}
+
+#' Calculate U235 at given age
+#'
+#' @param age input age
+#'
+#' @export
+#'
+concX <- function(age) {
+  age <- age * 10^6
+  lambda235 <- 9.8485 * (10^-10)
+  cx <- exp(lambda235*age) - 1
+  return(cx)
+
+}
+
+#' Calculate U238 at given age
+#'
+#' @param age input age
+#'
+#' @export
+#'
+concY <- function(age) {
+  age <- age * 10^6
+  lambda238 <- 1.55125 * (10^-10)
+  cy <- exp(lambda238*age) - 1
+  return(cy)
+}
+
+#' Find maxima.
+#'
+#'
+#' @param dist distribution.
+#' @param xmin minimum value of distribution.
+#' @param inc increment.
+find_maxima <- function(dist, xmin, inc) {
+  difference <- c(0, diff(dist))
+  difference2 <- c(difference[2:length(difference)], 0)
+  maximadata <- ((which(difference > 0 & difference2 <= 0) * inc) + xmin - 1)
 }

@@ -8,7 +8,7 @@ ui <- shiny::fluidPage(shiny::tabsetPanel(
         shiny::fileInput('file1', 'Select CSV File',
                          accept=c('text/csv',
                                   'text/comma-separated-values,text/plain',
-                                  '.csv')),
+                                  '.csv'), multiple = TRUE),
         shiny::tags$hr(),
         shiny::radioButtons('sep', 'Separator',
                             c(Comma=',',
@@ -195,6 +195,29 @@ ui <- shiny::fluidPage(shiny::tabsetPanel(
       shiny::uiOutput('o_switch')
     )
   )),
+
+  # Start of Reimink tab
+  shiny::tabPanel('Reimink', shiny::sidebarLayout(
+    shiny::sidebarPanel(
+      shiny::uiOutput('reimink_samples'),
+      shiny::numericInput('reimink_step', 'Chord step (My)', 100),
+      shiny::tags$hr(),
+      shiny::numericInput('reimink_width', 'Image Width (cm)', 15),
+      shiny::numericInput('reimink_height', 'Image Height (cm)', 15),
+      shiny::downloadButton('download_reimink_plot', 'Save Image')
+    ),
+    shiny::mainPanel(
+      shiny::plotOutput('reimink_plot'),
+      shiny::tags$hr(),
+      shiny::tags$p('Lower: '),
+      shiny::verbatimTextOutput('reimink_maxima_lower'),
+      shiny::tags$p('Upper: '),
+      shiny::verbatimTextOutput('reimink_maxima_upper'),
+      shiny::tags$hr(),
+      shiny::downloadButton('download_reimink_table', 'Save likelihood data')
+    )
+  )),
+
   # Start of Constants tab
   shiny::tabPanel('Constants', shiny::fluidPage(
     shiny::fluidRow(
@@ -251,10 +274,21 @@ server <- shiny::shinyServer(function(input, output) {
       if (is.null(inFile)) {
         return(NULL)
       }
-      dat <- utils::read.csv(inFile$datapath,
-                      header=TRUE,
-                      sep=input$sep,
-                      quote=input$quote)
+      n <- dim(inFile)[1]
+      if (n == 1) {
+        dat <- utils::read.csv(inFile$datapath, header=TRUE, sep=input$sep,
+                               quote=input$quote)
+      }
+      if (n > 1) {
+        dat <- utils::read.csv(inFile[[1, 'datapath']], header=TRUE,
+                               sep=input$sep, quote=input$quote)
+        for (i in seq(2, n)) {
+          csv <- utils::read.csv(inFile[[i, 'datapath']], header=TRUE,
+                          sep=input$sep, quote=input$quote)
+          dat <- merge(dat, csv, all = TRUE)
+
+        }
+      }
       if (input$disc) {
         dat <- check_conc(dat, disc_lim=input$disc_limit)
       }
@@ -357,6 +391,30 @@ server <- shiny::shinyServer(function(input, output) {
                           label_size = input$label_size,
                           legend_size = input$legend_size,
                           strip_text_y_size = input$strip_size)
+    }
+  })
+
+  reimink_plot <- shiny::reactive({
+    new_data <- reimink_table()
+    if (!is.null(new_data)) {
+      plot_reimink(new_data) +
+        plot_text_options(font_name = input$font_name,
+                          title_size = input$title_size,
+                          label_size = input$label_size,
+                          legend_size = input$legend_size,
+                          strip_text_y_size = input$strip_size)
+    }
+  })
+
+  reimink_table <- shiny::reactive({
+    new_data <- csv_data()
+    if (!is.null(new_data)) {
+      if(!is.null(input$reimink_samples)) {
+        new_data <- new_data[new_data$sample %in% input$reimink_samples, ]
+        new_data$sample <- factor(new_data$sample,
+                                  levels=input$reimink_samples)
+      }
+      reimink_data <- reimink(new_data, input$reimink_step)
     }
   })
 
@@ -570,6 +628,9 @@ server <- shiny::shinyServer(function(input, output) {
   output$ecdf_plot <- shiny::renderPlot({
     print(ecdf_plot())
   })
+  output$reimink_plot <- shiny::renderPlot({
+    print(reimink_plot())
+  })
   output$downloadDensplot <- shiny::downloadHandler(
     filename = function() {
       paste('kde', '.pdf', sep='')
@@ -641,6 +702,22 @@ server <- shiny::shinyServer(function(input, output) {
                       height=input$o_height, colormodel='cmyk', units='cm')
     }
 
+  )
+  output$download_reimink_plot <- shiny::downloadHandler(
+    filename = function() {
+      paste('reimink', '.pdf', sep='')
+    },
+    content = function(file) {
+      ggplot2::ggsave(file, plot = reimink_plot(), width=input$reimink_width,
+                      height=input$reimink_height, colormodel='cmyk',
+                      units='cm')
+    }
+  )
+  output$download_reimink_table <- shiny::downloadHandler(
+    filename = 'likelihood.csv',
+    content = function(file) {
+      utils::write.csv(reimink_table(), file)
+    }
   )
   output$download_hf_table <- shiny::downloadHandler(
     filename = function() {
@@ -796,6 +873,29 @@ server <- shiny::shinyServer(function(input, output) {
   output$o_table <- shiny::renderTable({
     o_table()
   }, rownames=TRUE)
+
+  output$reimink_samples <- shiny::renderUI({
+    new_data <- csv_data()
+    samples <- as.vector(unique(new_data$sample))
+    shiny::selectInput('reimink_samples', 'Select samples', samples,
+                       multiple=FALSE, selectize=FALSE)
+  })
+  output$reimink_maxima_lower <- renderText({
+    reimink_data <- reimink_table()
+    if (!is.null(reimink_data)) {
+        lower <- reimink_data[reimink_data$type == 'lower',]
+        lower_maxima <- find_maxima(lower$y, 0, 1)
+        lower[lower_maxima, ]$x
+    }
+  })
+  output$reimink_maxima_upper <- renderText({
+    reimink_data <- reimink_table()
+    if (!is.null(reimink_data)) {
+        upper <- reimink_data[reimink_data$type == 'upper',]
+        upper_maxima <- find_maxima(upper$y, 0, 1)
+        upper[upper_maxima, ]$x
+    }
+  })
 })
 
 # Run the application
