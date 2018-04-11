@@ -133,15 +133,20 @@ ui <- shiny::fluidPage(shiny::tabsetPanel(
       shiny::numericInput('hf_xstep', 'X step', 200),
       shiny::uiOutput("hf_switch"),
       shiny::tags$hr(),
+      shiny::checkboxInput('error_bars',
+                           label = 'Add error bars',
+                           value = FALSE),
+      shiny::conditionalPanel(
+        condition = 'input.error_bars == true',
+        shiny::checkboxInput('x_error_bars',
+                             label = 'X-direction error bars',
+                             value = TRUE)
+      ),
+      shiny::tags$hr(),
       shiny::checkboxInput('add_contours',
                            label = 'Add contours',
                            value = FALSE),
-      shiny::conditionalPanel(
-        condition = 'input.add_contours == true',
-        shiny::checkboxInput('combine_contours',
-                             label = 'Combine contours',
-                             value = FALSE)
-      ),
+      shiny::uiOutput('hf_bandwidths'),
       shiny::uiOutput('contour_switch'),
       shiny::tags$hr(),
       shiny::checkboxInput("hf_legend", label = "Show legend", value = TRUE),
@@ -532,6 +537,18 @@ server <- shiny::shinyServer(function(input, output) {
       new_data <- calc_hf(new_data, constants=constants)
       if (input$hf_type == 'ehf_plot') {
         contour_data <- NULL
+        if (input$error_bars) {
+          if (input$x_error_bars) {
+            x_errors <- data.frame(xmin=new_data$age-(2*new_data$uncert),
+                                   xmax=new_data$age+(2*new_data$uncert))
+            new_data <- cbind(new_data, x_errors)
+          }
+          if (input$y_error_bars) {
+            y_errors <- data.frame(ymin=new_data$ehf_i-new_data$ehf_2se,
+                                   ymax=new_data$ehf_i+new_data$ehf_2se)
+            new_data <- cbind(new_data, y_errors)
+          }
+        }
         if (input$add_contours) {
           contour_data <- new_data[new_data$sample %in% input$contour_choice, ]
         }
@@ -541,8 +558,13 @@ server <- shiny::shinyServer(function(input, output) {
                                     levels=input$hfhf_samples)
         }
         p <- plot_hf(new_data, guide=input$hf_legend,
-                     contours=input$add_contours, contour_data=contour_data,
+                     contours=input$add_contours,
+                     x_bandwidth=input$contour_x_bandwidth,
+                     y_bandwidth=input$contour_y_bandwidth,
+                     contour_data=contour_data,
                      combine_contours=input$combine_contours,
+                     error_bars=input$error_bars,
+                     x_errors=input$x_error_bars, y_errors=input$y_error_bars,
                      constants=constants) +
           plot_axis_lim(xlim=input$hf_xlim,
                         ylim=input$ehf_ylim,
@@ -554,6 +576,18 @@ server <- shiny::shinyServer(function(input, output) {
       } else {
         if (input$hf_type == 'hfhf_plot') {
           contour_data <- NULL
+          if (input$error_bars) {
+            if (input$x_error_bars) {
+              x_errors <- data.frame(xmin=new_data$age-(2*new_data$uncert),
+                                     xmax=new_data$age+(2*new_data$uncert))
+              new_data <- cbind(new_data, x_errors)
+            }
+            if (input$y_error_bars) {
+              y_errors <- data.frame(ymin=new_data$hf_i-new_data$hf_2se,
+                                     ymax=new_data$hf_i+new_data$hf_2se)
+              new_data <- cbind(new_data, y_errors)
+            }
+          }
           if (input$add_contours) {
             contour_data <-
               new_data[new_data$sample %in% input$contour_choice, ]
@@ -564,8 +598,13 @@ server <- shiny::shinyServer(function(input, output) {
                                         input$hfhf_samples)
           }
           p <- plot_hf(new_data, plot_type = 'hfhf', guide=input$hf_legend,
-                       contours=input$add_contours, contour_data=contour_data,
+                       contours=input$add_contours,
+                       x_bandwidth=input$contour_x_bandwidth,
+                       y_bandwidth=input$contour_y_bandwidth,
+                       contour_data=contour_data,
                        combine_contours=input$combine_contours,
+                       error_bars=input$error_bars,
+                       x_errors=input$x_error_bars, y_errors=input$y_error_bars,
                        constants=constants) +
             plot_axis_lim(xlim=input$hf_xlim,
                           ylim=input$hf_ylim,
@@ -793,6 +832,29 @@ server <- shiny::shinyServer(function(input, output) {
           }
         }
       }
+  })
+  output$hf_bandwidths <- shiny::renderUI({
+    if (input$hf_type == 'ehf_plot') {
+      shiny::conditionalPanel(
+        condition = 'input.add_contours == true',
+        shiny::numericInput('contour_x_bandwidth', 'X bandwidth', 30),
+        shiny::numericInput('contour_y_bandwidth', 'Y bandwidth', 2.5),
+        shiny::checkboxInput('combine_contours',
+                             label = 'Combine contours',
+                             value = FALSE)
+      )
+    } else {
+      if (input$hf_type == 'hfhf_plot') {
+        shiny::conditionalPanel(
+          condition = 'input.add_contours == true',
+          shiny::numericInput('contour_x_bandwidth', 'X bandwidth', 30),
+          shiny::numericInput('contour_y_bandwidth', 'Y bandwidth', 0.00025),
+          shiny::checkboxInput('combine_contours',
+                               label = 'Combine contours',
+                               value = FALSE)
+        )
+      }
+    }
   })
   # Dynamic UI O-tab
   output$o_switch <- shiny::renderUI({

@@ -4,7 +4,7 @@
 #'
 #' @param dat data.frame
 #' @param bw density bandwidth
-#' @param type 'kde': traditional KDE 'pdd': detrial zircon PDD
+#' @param type 'kde': traditional KDE 'pdd': detrital zircon PDD
 #' @param age_range range over which to calculate density
 #' @param facet logical, facet samples?
 #' @param step specify x-axis steps
@@ -42,7 +42,7 @@ plot_dens <- function(dat, bw=30, type='kde',
 #' @param dat data.frame
 #' @param bw density bandwidth
 #' @param binwidth histogram binwidth
-#' @param type 'kde': traditional KDE 'pdd': detrial zircon PDD
+#' @param type 'kde': traditional KDE 'pdd': detrital zircon PDD
 #' @param age_range range over which to calculate density
 #' @param facet logical, facet samples?
 #' @param step specify x-axis steps
@@ -214,7 +214,12 @@ plot_ecdf <- function(dat, mult_ecdf=FALSE, column='age', conf=FALSE,
 #' @param range range to display
 #' @param plot_type 'ehf'=epsilon-Hf; 'hfhf'=176/177Hf
 #' @param guide logical, show legend?
+#' @param x_errors logical, include x errorbars
+#' @param y_errors logical, include y errorbars
+#' @param error_bars logical, include errorbars
 #' @param contours logical, plot contours?
+#' @param x_bandwidth bandwidth 2dkde x-direction
+#' @param y_bandwidth bandwidth 2dkde y-direction
 #' @param contour_data data.frame containing data to contour
 #' @param combine_contours logical combine contouring data
 #' @param constants vector of constants which must be in the order
@@ -224,7 +229,9 @@ plot_ecdf <- function(dat, mult_ecdf=FALSE, column='age', conf=FALSE,
 #' @export
 #'
 plot_hf <- function(dat, range=c(0, 4560), plot_type='ehf', guide=TRUE,
-                    contours=FALSE, contour_data=NULL, combine_contours=FALSE,
+                    x_errors=FALSE, y_errors=FALSE, error_bars=FALSE,
+                    contours=FALSE, x_bandwidth=NULL, y_bandwidth=NULL,
+                    contour_data=NULL, combine_contours=FALSE,
                     constants) {
   if (plot_type == 'ehf') {
     lines <- hf_lines(range=range, plot_type='ehf', constants)
@@ -236,6 +243,21 @@ plot_hf <- function(dat, range=c(0, 4560), plot_type='ehf', guide=TRUE,
     gplot <- gplot + plot_bw_theme() +
       plot_labels(xlab='Age (Ma)',
                   ylab=expression(paste('Initial ', epsilon["Hf"])))
+    if (error_bars) {
+      if (x_errors) {
+        gplot <- gplot + ggplot2::geom_errorbarh(data=dat,
+                                                 ggplot2::aes_string(xmin='xmin',
+                                                                     xmax='xmax',
+                                                                     y='ehf_i',
+                                                                     x='age'))
+      }
+      if (y_errors) {
+        gplot <- gplot + ggplot2::geom_errorbar(data=dat,
+                                                ggplot2::aes_string(ymin='ymin',
+                                                                    ymax='ymax',
+                                                                    x='age'))
+      }
+    }
     if (contours & !is.null(contour_data)) {
       old_names <- c('sample', 'age', 'ehf_i')
       new_names <- c('s', 'a', 'e')
@@ -245,14 +267,16 @@ plot_hf <- function(dat, range=c(0, 4560), plot_type='ehf', guide=TRUE,
         gplot <- gplot + ggplot2::geom_density2d(data=contour_data,
                                                  ggplot2::aes_string(x='a',
                                                                      y='e'),
-                                                 h=c(30, 2.5)*4)
+                                                 h=c(x_bandwidth,
+                                                     y_bandwidth)*4)
           gplot <- gplot + ggplot2::guides(color=FALSE)
       } else {
         gplot <- gplot + ggplot2::geom_density2d(data=contour_data,
                                                  ggplot2::aes_string(x='a',
                                                                      y='e',
                                                                      color='s'),
-                                                 h=c(30, 2.5)*4)
+                                                 h=c(x_bandwidth,
+                                                     y_bandwidth)*4)
         gplot <- gplot + ggplot2::guides(color=FALSE)
       }
     }
@@ -276,6 +300,22 @@ plot_hf <- function(dat, range=c(0, 4560), plot_type='ehf', guide=TRUE,
         plot_labels(xlab='Age (Ma)',
                     ylab=expression(paste("Initial "^{176},"Hf/",
                                           ""^{177},"Hf")))
+      if (error_bars) {
+        if (x_errors) {
+          gplot <- gplot + ggplot2::geom_errorbarh(data=dat,
+                                                   ggplot2::aes_string(xmin='xmin',
+                                                                       xmax='xmax',
+                                                                       y='hf_i',
+                                                                       x='age'))
+        }
+        if (y_errors) {
+          gplot <- gplot + ggplot2::geom_errorbar(data=dat,
+                                                  ggplot2::aes_string(ymin='ymin',
+                                                                      ymax='ymax',
+                                                                      x='age'))
+        }
+      }
+
       if (contours & !is.null(contour_data)) {
         old_names <- c('sample', 'age', 'hf_i')
         new_names <- c('s', 'a', 'h')
@@ -285,13 +325,14 @@ plot_hf <- function(dat, range=c(0, 4560), plot_type='ehf', guide=TRUE,
           gplot <- gplot + ggplot2::geom_density2d(data=contour_data,
                                                    ggplot2::aes_string(x='a',
                                                                        y='h'),
-                                                   h=c(30, 0.00025)*4) +
+                                                   h=c(x_bandwidth,
+                                                       y_bandwidth)*4) +
             ggplot2::guides(color=FALSE)
         } else {
           gplot <- gplot + ggplot2::geom_density2d(
             data=contour_data,
             ggplot2::aes_string(x='a', y='h', color='s'),
-            h=c(30, 0.00025)*4)
+            h=c(x_bandwidth, y_bandwidth)*4)
           gplot <- gplot + ggplot2::guides(color=FALSE)
 
         }
