@@ -40,6 +40,7 @@ ui <- shiny::fluidPage(shiny::tabsetPanel(
                    c(KDE='kde',
                      PDP='pdd')),
       shiny::checkboxInput('hist', label = 'Histogram', value = TRUE),
+      shiny::checkboxInput('fixed_y', label= 'Fixed y-axis', value = FALSE),
       selectInput('dens_type', 'Plot type',
                   c('All samples in one'='dens_facet',
                     'Individual samples'='dens_ind',
@@ -47,8 +48,10 @@ ui <- shiny::fluidPage(shiny::tabsetPanel(
       shiny::uiOutput('dens_switch'),
       shiny::numericInput('binwidth', 'Binwidth', 50),
       shiny::numericInput('bw', "Bandwidth", 30),
-      shiny::sliderInput("xlim", "X-axis range (Ma)",
-                  min = 0, max = 4560, value = c(200, 4000)),
+      shiny::numericInput('xstart', "X-axis start (Ma)",
+                          value=200,min=0,max=4600,step=100),
+      shiny::numericInput('xstop', "X-axis start (Ma)",
+                          value=4000,min=0,max=4600,step=100),
       shiny::numericInput('xstep', 'X step', 200),
       shiny::numericInput('densWidth', 'Image Width (cm)', 15),
       shiny::numericInput('densHeight', 'Image Height (cm)', 15),
@@ -70,9 +73,11 @@ ui <- shiny::fluidPage(shiny::tabsetPanel(
                     'Combine samples'='ecdf_combine_plot')),
       shiny::uiOutput("ecdf_switch"),
       shiny::checkboxInput('ecdf_conf', label='Confidence bands', value=FALSE),
-      shiny::sliderInput("ecdf_xlim", "X-axis range (Ma)",
-                  min = 0, max = 4560, value = c(200, 4000)),
-      shiny::numericInput('ecdf_xstep', 'X step', 200),
+      shiny::numericInput('ecdf_xstart', 'X-axis start (Ma)',
+                          value=200,min=0,max=4600,step=100),
+      shiny::numericInput('ecdf_xstop', 'X-axis stop (Ma)',
+                          value=4000,min=0,max=4600,step=100),
+      shiny::numericInput('ecdf_xstep', 'X-axis step (Ma)', 200),
       shiny::checkboxInput("ecdf_legend", label = "Show legend", value = TRUE),
       shiny::numericInput('ecdf_width', 'Image Width (cm)', 15),
       shiny::numericInput('ecdf_height', 'Image Height (cm)', 15),
@@ -90,11 +95,15 @@ ui <- shiny::fluidPage(shiny::tabsetPanel(
                           c('Age'='uqlq_age',
                             'Model age'='uqlq_tdm')),
       shiny::uiOutput('uqlq_samples'),
-      shiny::sliderInput('uqlq_xlim', 'X-axis range (Ma)',
-                         min = 0, max = 4560, value = c(200, 4000)),
-      shiny::sliderInput('uqlq_ylim', 'Y-axis range (Ma)',
-                         min = 0, max = 4560, value = c(200, 4000)),
       shiny::numericInput('uqlq_xstep', 'X step', 500),
+      shiny::numericInput('uqlq_xstart', 'X-axis start (Ma)',
+                          value=200,min=0,max=4600,step=100),
+      shiny::numericInput('uqlq_xstop', 'X-axis stop (Ma)',
+                          value=4000,min=0,max=4600,step=100),
+      shiny::numericInput('uqlq_ystart', 'Y-axis start (Ma)',
+                          value=200,min=0,max=4600,step=100),
+      shiny::numericInput('uqlq_ystop', 'Y-axis stop (Ma)',
+                          value=4000,min=0,max=4600,step=100),
       shiny::checkboxInput('uqlq_conf',
                            label='Confidence limits',
                            value=FALSE),
@@ -128,8 +137,10 @@ ui <- shiny::fluidPage(shiny::tabsetPanel(
                           c('Epsilon Hf'='ehf_plot',
                             'Hf/Hf'='hfhf_plot')),
       shiny::uiOutput('hf_samples'),
-      shiny::sliderInput('hf_xlim', 'X-axis range (Ma)',
-                         min = 0, max = 4560, value = c(200, 4000)),
+      shiny::numericInput('hf_xstart', 'X-axis start (Ma)',
+                          value=200,min=0,max=4600,step=100),
+      shiny::numericInput('hf_xstop', 'X-axis stop (Ma)',
+                          value=4000,min=0,max=4600,step=100),
       shiny::numericInput('hf_xstep', 'X step', 200),
       shiny::uiOutput("hf_switch"),
       shiny::tags$hr(),
@@ -462,8 +473,9 @@ server <- shiny::shinyServer(function(input, output) {
       }
        if (input$hist == TRUE) {
          p <- plot_dens_hist(new_data, binwidth=input$binwidth, bw=input$bw,
-                             type=input$type, age_range=input$xlim,
-                             facet=facet, step=input$xstep) +
+                             type=input$type, age_range=c(input$xstart, input$xstop),
+                             facet=facet, fixed_y=input$fixed_y,
+                             step=input$xstep) +
            plot_text_options(font_name = input$font_name,
                              title_size = input$title_size,
                              label_size = input$label_size,
@@ -471,8 +483,8 @@ server <- shiny::shinyServer(function(input, output) {
                              strip_text_y_size = input$strip_size)
        } else {
          p <- plot_dens(new_data, bw=input$bw,
-                        type=input$type, age_range=input$xlim,
-                        facet=facet, step=input$xstep) +
+                        type=input$type, age_range=c(input$xstart, input$xstop),
+                        facet=facet, fixed_y=input$fixed_y, step=input$xstep) +
            plot_text_options(font_name = input$font_name,
                              title_size = input$title_size,
                              label_size = input$label_size,
@@ -516,7 +528,8 @@ server <- shiny::shinyServer(function(input, output) {
       }
       p <- plot_ecdf(new_data, mult_ecdf=mult_ecdf, conf=input$ecdf_conf,
                      column=input$ecdf_input_type, guide=input$ecdf_legend) +
-        plot_axis_lim(xlim=input$ecdf_xlim, step=input$ecdf_xstep) +
+        plot_axis_lim(xlim=c(input$ecdf_xstart, input$ecdf_xstop),
+                      step=input$ecdf_xstep) +
         plot_text_options(font_name = input$font_name,
                             title_size = input$title_size,
                             label_size = input$label_size,
@@ -566,8 +579,8 @@ server <- shiny::shinyServer(function(input, output) {
                      error_bars=input$error_bars,
                      x_errors=input$x_error_bars, y_errors=input$y_error_bars,
                      constants=constants) +
-          plot_axis_lim(xlim=input$hf_xlim,
-                        ylim=input$ehf_ylim,
+          plot_axis_lim(xlim=c(input$hf_xstart, input$hf_xstop),
+                        ylim=c(input$ehf_ystart, input$ehf_ystop),
                         step=input$hf_xstep) +
           plot_text_options(font_name = input$font_name,
                             title_size = input$title_size,
@@ -606,8 +619,8 @@ server <- shiny::shinyServer(function(input, output) {
                        error_bars=input$error_bars,
                        x_errors=input$x_error_bars, y_errors=input$y_error_bars,
                        constants=constants) +
-            plot_axis_lim(xlim=input$hf_xlim,
-                          ylim=input$hf_ylim,
+            plot_axis_lim(xlim=c(input$hf_xstart, input$hf_xstop),
+                          ylim=c(input$hf_ystart, input$hf_ystop),
                           step=input$hf_xstep) +
             plot_text_options(font_name = input$font_name,
                                 title_size = input$title_size,
@@ -648,8 +661,9 @@ server <- shiny::shinyServer(function(input, output) {
       p <- plot_quantiles(new_data, column=column, guide=input$uqlq_legend,
                           conf=input$uqlq_conf, mix=input$mixing_model,
                           mix_data=mix_data)
-      p <- p + plot_axis_lim(xlim=input$uqlq_xlim, step=input$uqlq_xstep,
-                             ylim=input$uqlq_ylim)
+      p <- p + plot_axis_lim(xlim=c(input$uqlq_xstart, input$uqlq_xstop),
+                             step=input$uqlq_xstep,
+                             ylim=c(input$uqlq_ystart, input$uqlq_ystop))
       p <- p + plot_text_options(font_name = input$font_name,
                                  title_size = input$title_size,
                                  label_size = input$label_size,
@@ -825,11 +839,6 @@ server <- shiny::shinyServer(function(input, output) {
       if (input$hf_type == 'hfhf_plot') {
         shiny::sliderInput('hf_ylim', 'Y-axis range',
                            min=0.279, max=0.283, value = c(0.28, 0.283))
-      } else {
-        if (input$hf_type == 'quant_plot') {
-          shiny::sliderInput('quant_ylim', 'Y-axis range',
-                             min=0, max=4560, value=c(200, 4000))
-          }
         }
       }
   })
