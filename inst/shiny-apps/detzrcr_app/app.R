@@ -151,6 +151,9 @@ ui <- shiny::fluidPage(shiny::tabsetPanel(
         condition = 'input.error_bars == true',
         shiny::checkboxInput('x_error_bars',
                              label = 'X-direction error bars',
+                             value = TRUE),
+        shiny::checkboxInput('y_error_bars',
+                             label = 'Y-direction error bars',
                              value = TRUE)
       ),
       shiny::tags$hr(),
@@ -580,7 +583,7 @@ server <- shiny::shinyServer(function(input, output) {
                      x_errors=input$x_error_bars, y_errors=input$y_error_bars,
                      constants=constants) +
           plot_axis_lim(xlim=c(input$hf_xstart, input$hf_xstop),
-                        ylim=c(input$ehf_ystart, input$ehf_ystop),
+                        ylim=input$ehf_ylim,
                         step=input$hf_xstep) +
           plot_text_options(font_name = input$font_name,
                             title_size = input$title_size,
@@ -620,7 +623,7 @@ server <- shiny::shinyServer(function(input, output) {
                        x_errors=input$x_error_bars, y_errors=input$y_error_bars,
                        constants=constants) +
             plot_axis_lim(xlim=c(input$hf_xstart, input$hf_xstop),
-                          ylim=c(input$hf_ystart, input$hf_ystop),
+                          ylim=input$hf_ylim,
                           step=input$hf_xstep) +
             plot_text_options(font_name = input$font_name,
                                 title_size = input$title_size,
