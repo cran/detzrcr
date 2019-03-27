@@ -29,7 +29,8 @@ ui <- shiny::fluidPage(shiny::tabsetPanel(
       shiny::checkboxInput('example_data', 'Display example data', value=FALSE)
     ),
     shiny::mainPanel(
-      shiny::tableOutput('head')
+      shiny::tableOutput('head'),
+      shiny::textOutput('nas')
     )
   )),
 
@@ -308,14 +309,32 @@ server <- shiny::shinyServer(function(input, output) {
 
         }
       }
-      if (input$disc) {
-        dat <- check_conc(dat, disc_lim=input$disc_limit)
-      }
     } else {
       dat <- utils::read.csv(system.file("extdata", "Natal_group.csv",
                                            package="detzrcr"))
-      if (input$disc) {
-        dat <- check_conc(dat, disc_lim=input$disc_limit)
+    }
+    if ('sample' %in% names(dat)) {
+      dat$sample <- as.factor(dat$sample)
+    }
+    if (input$disc) {
+      nas <- NULL
+      if (is.factor(dat$disc)) {
+        dat$disc <- suppressWarnings(as.numeric(as.character(dat$disc)))
+        nas <- which(is.na(dat$disc))
+        dat <- dat[-nas, ]
+        nas_txt <- paste(nas, collapse=', ')
+        nas_txt <- paste('Removed row(s)', nas_txt, 'because disc-column contain non-numeric values', sep=' ')
+        output$nas <- shiny::renderPrint({
+          cat(nas_txt)
+        })
+      }
+      if (is.null(nas)) {
+        output$nas <- shiny::renderPrint({
+          cat('')
+        })
+      }
+      if (!is.null(input$disc_limit)) {
+        dat <-check_conc(dat, disc_lim=input$disc_limit)
       }
     }
     return(dat)
@@ -688,8 +707,9 @@ server <- shiny::shinyServer(function(input, output) {
     print(reimink_plot())
   })
   output$downloadDensplot <- shiny::downloadHandler(
-    filename = function() {
-      paste('kde', '.pdf', sep='')
+    filename = function(){
+      paste('kde-', format(Sys.time(), "%d%m%y-%H%M%S"), '.pdf', sep='')
+
     },
     content = function(file) {
       ggplot2::ggsave(file, plot = dens_plot(), width=input$densWidth,
@@ -697,8 +717,9 @@ server <- shiny::shinyServer(function(input, output) {
     }
   )
   output$download_ecdf_plot <- shiny::downloadHandler(
-    filename = function() {
-      paste('ecdf', '.pdf', sep='')
+    filename = function(){
+      paste('ecdf-', format(Sys.time(), "%d%m%y-%H%M%S"), '.pdf', sep='')
+
     },
     content = function(file) {
       ggplot2::ggsave(file, plot = ecdf_plot(), width=input$ecdf_width,
@@ -706,8 +727,9 @@ server <- shiny::shinyServer(function(input, output) {
     }
   )
   output$download_hf_plot <- shiny::downloadHandler(
-    filename = function() {
-      paste('hf', '.pdf', sep='')
+    filename = function(){
+      paste('hf-', format(Sys.time(), "%d%m%y-%H%M%S"), '.pdf', sep='')
+
     },
     content = function(file) {
       ggplot2::ggsave(file, plot = hf_plot(), width=input$hf_width,
@@ -716,8 +738,9 @@ server <- shiny::shinyServer(function(input, output) {
     }
   )
   output$download_uqlq_plot <- shiny::downloadHandler(
-    filename = function() {
-      paste('uqlq', '.pdf', sep='')
+    filename = function(){
+      paste('uqlq-', format(Sys.time(), "%d%m%y-%H%M%S"), '.pdf', sep='')
+
     },
     content = function(file) {
       ggplot2::ggsave(file, plot = uqlq_plot(), width=input$uqlq_width,
@@ -726,32 +749,36 @@ server <- shiny::shinyServer(function(input, output) {
     }
   )
   output$download_likeness_table <- shiny::downloadHandler(
-    filename = function() {
-      paste('likeness', '.csv', sep='')
+    filename = function(){
+      paste('likeness-', format(Sys.time(), "%d%m%y-%H%M%S"), '.csv', sep='')
+
     },
     content = function(file) {
-      utils::write.csv(likeness_table(), file)
+      utils::write.csv(likeness_table(), file, row.names = FALSE)
     }
   )
   output$download_satkoski_2d <- shiny::downloadHandler(
-    filename = function() {
-      paste('L2', '.csv', sep='')
+    filename = function(){
+      paste('L2-', format(Sys.time(), "%d%m%y-%H%M%S"), '.csv', sep='')
+
     },
     content = function(file) {
-      utils::write.csv(satkoski_2d_table(), file)
+      utils::write.csv(satkoski_2d_table(), file, row.names = FALSE)
     }
   )
   output$download_o_table <- shiny::downloadHandler(
-    filename = function() {
-      paste('otable', '.csv', sep='')
+    filename = function(){
+      paste('otable-', format(Sys.time(), "%d%m%y-%H%M%S"), '.csv', sep='')
+
     },
     content = function(file) {
-      utils::write.csv(o_table(), file)
+      utils::write.csv(o_table(), file, row.names = FALSE)
     }
   )
   output$download_o_plot <- shiny::downloadHandler(
-    filename = function() {
-      paste('oplot', '.pdf', sep='')
+    filename = function(){
+      paste('oplot-', format(Sys.time(), "%d%m%y-%H%M%S"), '.pdf', sep='')
+
     },
     content = function(file) {
       ggplot2::ggsave(file, plot = o_plot(), width=input$o_width,
@@ -760,8 +787,9 @@ server <- shiny::shinyServer(function(input, output) {
 
   )
   output$download_reimink_plot <- shiny::downloadHandler(
-    filename = function() {
-      paste('reimink', '.pdf', sep='')
+    filename = function(){
+      paste('reimink-', format(Sys.time(), "%d%m%y-%H%M%S"), '.pdf', sep='')
+
     },
     content = function(file) {
       ggplot2::ggsave(file, plot = reimink_plot(), width=input$reimink_width,
@@ -770,17 +798,21 @@ server <- shiny::shinyServer(function(input, output) {
     }
   )
   output$download_reimink_table <- shiny::downloadHandler(
-    filename = 'likelihood.csv',
+    filename = function(){
+      paste('likelihood-', format(Sys.time(), "%d%m%y-%H%M%S"), '.csv', sep='')
+
+    },
     content = function(file) {
-      utils::write.csv(reimink_table(), file)
+      utils::write.csv(reimink_table(), file, row.names = FALSE)
     }
   )
   output$download_hf_table <- shiny::downloadHandler(
-    filename = function() {
-      paste('hf', '.csv', sep='')
+    filename = function(){
+      paste('hf-', format(Sys.time(), "%d%m%y-%H%M%S"), '.csv', sep='')
+
     },
     content = function(file) {
-      utils::write.csv(hf_table(), file)
+      utils::write.csv(hf_table(), file, row.names = FALSE)
     }
   )
   output$dens_facet_select <- shiny::renderUI({
@@ -841,7 +873,7 @@ server <- shiny::shinyServer(function(input, output) {
     } else {
       if (input$hf_type == 'hfhf_plot') {
         shiny::sliderInput('hf_ylim', 'Y-axis range',
-                           min=0.279, max=0.283, value = c(0.28, 0.283))
+                           min=0.279, max=0.2833, value = c(0.28, 0.2831))
         }
       }
   })
