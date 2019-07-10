@@ -4,7 +4,7 @@ Authors@R: c(
     role=c("aut", "cre")))
 Type: Package
 Title: Compare Detrital Zircon Suites
-Version: 0.2.5
+Version: 0.2.6
 Description: Compare detrital zircon suites by uploading univariate,
       U-Pb age, or bivariate, U-Pb age and Lu-Hf data, in a 'shiny'-based
       user-interface. Outputs publication quality figures using 'ggplot2', and
@@ -19,8 +19,8 @@ Suggests: knitr, rmarkdown
 VignetteBuilder: knitr
 Encoding: UTF-8
 NeedsCompilation: no
-Packaged: 2019-03-27 10:04:22 UTC; magnus
+Packaged: 2019-07-10 08:38:51 UTC; magnus
 Author: Magnus Kristoffersen [aut, cre]
 Maintainer: Magnus Kristoffersen <magnus.kristoffersen@geo.uio.no>
 Repository: CRAN
-Date/Publication: 2019-03-27 11:00:03 UTC
+Date/Publication: 2019-07-10 08:50:03 UTC

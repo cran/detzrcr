@@ -126,12 +126,9 @@ plot_labels <- function(xlab = 'Age (Ma)', ylab = 'Density') {
 #' @export
 #'
 plot_axis_lim <- function(xlim = c(0, 4560), step=200, ylim=NULL) {
-  p_x_lim <- list(ggplot2::scale_x_continuous(limits=xlim,
-                                           breaks=seq(xlim[1], xlim[2], step),
-                                           expand=c(0, 0)
-                                           ),
-                  ggplot2::scale_y_continuous(limits=ylim)
-  )
+  p_x_lim <- list(ggplot2::coord_cartesian(xlim=xlim, ylim=ylim),
+                  ggplot2::scale_x_continuous(
+                                           breaks=seq(xlim[1], xlim[2], step)))
 }
 
 #' Modify text options of plots
@@ -189,31 +186,31 @@ plot_ecdf <- function(dat, mult_ecdf=FALSE, column='age', conf=FALSE,
                 alpha=alpha)
     conf_data <- do.call(rbind.data.frame, l)
     gplot <- ggplot2::ggplot() +
-      ggplot2::geom_line(data=conf_data,
+      ggplot2::geom_step(data=conf_data,
                          ggplot2::aes_string(x='x', y='y',
                                              color='sample'), na.rm=TRUE) +
       plot_bw_theme() + plot_labels(ylab = 'Probability')
     if (conf) {
       gplot <- gplot +
-        ggplot2::geom_line(data=conf_data,
+        ggplot2::geom_step(data=conf_data,
                            ggplot2::aes_string(x='x', y='low', color='sample'),
                            linetype=2, na.rm=TRUE) +
-        ggplot2::geom_line(data=conf_data,
+        ggplot2::geom_step(data=conf_data,
                            ggplot2::aes_string(x='x', y='high', color='sample'),
                            linetype=2, na.rm=TRUE)
     }
   } else {
     conf_data <- calc_dkw(dat, column=column, alpha=alpha)
     gplot <- ggplot2::ggplot()
-    gplot <- gplot + ggplot2::geom_line(data=conf_data,
+    gplot <- gplot + ggplot2::geom_step(data=conf_data,
                                 ggplot2::aes_string(x='x', y='y'), na.rm=TRUE) +
       plot_bw_theme() + plot_labels(ylab = 'Probability')
     if (conf) {
       gplot <- gplot +
-        ggplot2::geom_line(data=conf_data,
+        ggplot2::geom_step(data=conf_data,
                            ggplot2::aes_string(x='x', y='low'), linetype=2,
                            na.rm=TRUE) +
-        ggplot2::geom_line(data=conf_data,
+        ggplot2::geom_step(data=conf_data,
                            ggplot2::aes_string(x='x', y='high'), linetype=2,
                            na.rm=TRUE)
     }

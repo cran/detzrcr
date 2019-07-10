@@ -324,13 +324,11 @@ calc_dkw <- function(dat, column='age', alpha=0.05) {
   n <- length(x)
   x <- c(0, sort(x), 4560)
   y <- c(0, y, 1)
-  x_out <- seq(0, 4560)
-  y <- stats::approx(x, y, xout=x_out)$y
   epsilon <- sqrt(log(2 / alpha) / (2 * n))
   low <- pmax(y - epsilon, 0)
   high <- pmin(y + epsilon, 1)
-  sample <- rep(sample_name, length(x_out))
-  data.frame(x=x_out, y=y, low=low, high=high, sample=sample)
+  sample <- rep(sample_name, length(x))
+  data.frame(x=x, y=y, low=low, high=high, sample=sample)
 }
 
 #' Calculate 1-O
@@ -366,8 +364,8 @@ calc_o_param <- function(dat1, dat2, column, alpha=0.05, digits=2) {
     y_sort <- c(0, y_sort, 4560)
     y_y <- c(0, y_y, 1)
     x_out <- seq(0, 4560)
-    interpolated_one <- stats::approx(x_sort, x_y, xout=x_out)$y
-    interpolated_two <- stats::approx(y_sort, y_y, xout=x_out)$y
+    interpolated_one <- stats::approx(x_sort, x_y, xout=x_out, ties='ordered')$y
+    interpolated_two <- stats::approx(y_sort, y_y, xout=x_out, ties='ordered')$y
     interpolated_one_low <- pmax(interpolated_one - epsilon_one, 0)
     interpolated_one_up <- pmin(interpolated_one + epsilon_one, 1)
     interpolated_two_low <- pmax(interpolated_two - epsilon_two, 0)
@@ -531,12 +529,16 @@ quant_bounds <- function(dat, column='t_dm2', alpha=0.05) {
     high <- pmin(y + epsilon, 1)
     sort_age_low <- data.frame(x=sort(column), y=low)
     sort_age_high <- data.frame(x=sort(column), y=high)
-    ll <- stats::approx(x=sort_age_low$y, y=sort_age_low$x, xout=c(0.25))$y
-    lu <- stats::approx(x=sort_age_low$y, y=sort_age_low$x, xout=c(0.75))$y
+    ll <- stats::approx(x=sort_age_low$y, y=sort_age_low$x, xout=c(0.25),
+                        ties='ordered')$y
+    lu <- stats::approx(x=sort_age_low$y, y=sort_age_low$x, xout=c(0.75),
+                        ties='ordered')$y
     if(is.na(lu)) lu <- max(sort_age_low$x)
-    ul <- stats::approx(x=sort_age_high$y, y=sort_age_high$x, xout=c(0.25))$y
+    ul <- stats::approx(x=sort_age_high$y, y=sort_age_high$x, xout=c(0.25),
+                        ties='ordered')$y
     if(is.na(ul)) ul <- min(sort_age_high$x)
-    uu <- stats::approx(x=sort_age_high$y, y=sort_age_high$x, xout=c(0.75))$y
+    uu <- stats::approx(x=sort_age_high$y, y=sort_age_high$x, xout=c(0.75),
+                        ties='ordered')$y
     lq_dist <- stats::quantile(column, probs=c(0.25), type=8, na.rm=TRUE)
     uq_dist <- stats::quantile(column, probs=c(0.75), type=8, na.rm=TRUE)
     data.frame(x=lq_dist, y=uq_dist, ymin=ll, ymax=lu, xmin=ul, xmax=uu, sample)
@@ -665,8 +667,8 @@ reimink <- function(dat, step=5) {
   t2 <- seq(step, 4500, step)
   grid <- expand.grid(t1, t2)
   grid <- grid[grid$Var2 > grid$Var1,]
-  dat$sigma75 <- mean(dat$sigma75)
-  dat$sigma68 <- mean(dat$sigma68)
+  dat$sigma75 <- stats::median(dat$sigma75)
+  dat$sigma68 <- stats::median(dat$sigma68)
   result <- calc_p_apply(dat, grid$Var2, grid$Var1)
   lower <- stats::aggregate(result$p_disc, by=list(result$t1), max)
   upper <- stats::aggregate(result$p_disc, by=list(result$t2), max)
