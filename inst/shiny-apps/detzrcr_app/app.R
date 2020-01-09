@@ -1,298 +1,322 @@
-ui <- shiny::fluidPage(shiny::tabsetPanel(
+ui <- shiny::fluidPage(shiny::navbarPage("detzrcr",
+                        shiny::tabPanel('Data Input', shiny::sidebarLayout(
+                          shiny::sidebarPanel(
+                            shiny::conditionalPanel(
+                              condition = 'input.example_data == false',
+                              shiny::fileInput('file1', 'Select CSV File',
+                                               accept=c('text/csv',
+                                                        'text/comma-separated-values,text/plain',
+                                                        '.csv'), multiple = TRUE),
+                              shiny::tags$hr(),
+                              shiny::radioButtons('sep', 'Separator',
+                                                  c(Comma=',',
+                                                    Semicolon=';',
+                                                    Tab='\t'),
+                                                  ','),
+                              shiny::radioButtons('quote', 'Quote',
+                                                  c(None='',
+                                                    'Double Quote'='"',
+                                                    'Single Quote'="'"),
+                                                  '"'),
+                              shiny::tags$hr()),
+                            shiny::checkboxInput('disc',
+                                                 label = 'Remove discordant data',
+                                                 value = FALSE),
+                            shiny::uiOutput('show_disc_limit'),
+                            shiny::tags$hr(),
+                            shiny::checkboxInput('example_data',
+                                                 'Display example data',
+                                                 value=FALSE),
+                            shiny::tags$hr(),
+                            shiny::checkboxInput('sample_freq',
+                                                 'Show sample frequencies',
+                                                 value=FALSE)
+                          ),
+                          shiny::mainPanel(
+                            DT::dataTableOutput('head'),
+                            shiny::textOutput('nas'),
+                            shiny::tableOutput('numbers')
+                          )
+                        )),
 
-  # Start of data input tab
-  shiny::tabPanel('Data Input', shiny::sidebarLayout(
-    shiny::sidebarPanel(
-      shiny::conditionalPanel(
-        condition = 'input.example_data == false',
-        shiny::fileInput('file1', 'Select CSV File',
-                         accept=c('text/csv',
-                                  'text/comma-separated-values,text/plain',
-                                  '.csv'), multiple = TRUE),
-        shiny::tags$hr(),
-        shiny::radioButtons('sep', 'Separator',
-                            c(Comma=',',
-                              Semicolon=';',
-                              Tab='\t'),
-                            ','),
-        shiny::radioButtons('quote', 'Quote',
-                            c(None='',
-                              'Double Quote'='"',
-                              'Single Quote'="'"),
-                            '"'),
-        shiny::tags$hr()),
-      shiny::checkboxInput('disc',
-                           label = 'Remove discordant data',
-                           value = FALSE),
-      shiny::uiOutput('show_disc_limit'),
-      shiny::tags$hr(),
-      shiny::checkboxInput('example_data', 'Display example data', value=FALSE)
-    ),
-    shiny::mainPanel(
-      shiny::tableOutput('head'),
-      shiny::textOutput('nas')
-    )
-  )),
+                        # Start of density distribution tab
+                        shiny::tabPanel('Density Distribution ', shiny::sidebarLayout(
+                          shiny::sidebarPanel(
+                            shiny::radioButtons('type', 'Density distribution type',
+                                                c(KDE='kde',
+                                                  PDP='pdd')),
+                            shiny::checkboxInput('hist', label = 'Histogram', value = TRUE),
+                            shiny::checkboxInput('fixed_y', label= 'Fixed y-axis', value = FALSE),
+                            shiny::selectInput('dens_type', 'Plot type',
+                                               c('All samples in one'='dens_facet',
+                                                 'Individual samples'='dens_ind',
+                                                 'Combine samples'='dens_combine')),
+                            shiny::uiOutput('dens_switch'),
+                            shiny::numericInput('binwidth', 'Binwidth', 50),
+                            shiny::numericInput('bw', "Bandwidth", 30),
+                            shiny::numericInput('xstart', "X-axis start (Ma)",
+                                                value=200,min=0,max=4600,step=100),
+                            shiny::numericInput('xstop', "X-axis start (Ma)",
+                                                value=4000,min=0,max=4600,step=100),
+                            shiny::numericInput('xstep', 'X step', 200),
+                            shiny::numericInput('densWidth', 'Image Width (cm)', 15),
+                            shiny::numericInput('densHeight', 'Image Height (cm)', 15),
+                            shiny::downloadButton('downloadDensplot', 'Save Image')),
+                          shiny::mainPanel(
+                            shiny::plotOutput('dens_plot')
+                          )
+                        )),
 
-  # Start of density distribution tab
-  shiny::tabPanel('Density Distribution ', shiny::sidebarLayout(
-    shiny::sidebarPanel(
-      shiny::radioButtons('type', 'Density distribution type',
-                   c(KDE='kde',
-                     PDP='pdd')),
-      shiny::checkboxInput('hist', label = 'Histogram', value = TRUE),
-      shiny::checkboxInput('fixed_y', label= 'Fixed y-axis', value = FALSE),
-      selectInput('dens_type', 'Plot type',
-                  c('All samples in one'='dens_facet',
-                    'Individual samples'='dens_ind',
-                    'Combine samples'='dens_combine')),
-      shiny::uiOutput('dens_switch'),
-      shiny::numericInput('binwidth', 'Binwidth', 50),
-      shiny::numericInput('bw', "Bandwidth", 30),
-      shiny::numericInput('xstart', "X-axis start (Ma)",
-                          value=200,min=0,max=4600,step=100),
-      shiny::numericInput('xstop', "X-axis start (Ma)",
-                          value=4000,min=0,max=4600,step=100),
-      shiny::numericInput('xstep', 'X step', 200),
-      shiny::numericInput('densWidth', 'Image Width (cm)', 15),
-      shiny::numericInput('densHeight', 'Image Height (cm)', 15),
-      shiny::downloadButton('downloadDensplot', 'Save Image')),
-    shiny::mainPanel(
-      shiny::plotOutput('dens_plot')
-    )
-  )),
+                        # Start of ECDF tab
+                        shiny::tabPanel('ECDF', shiny::sidebarLayout(
+                          shiny::sidebarPanel(
+                            shiny::radioButtons('ecdf_input_type', 'Type',
+                                                c('Age'='age',
+                                                  'Model age'='t_dm2')),
+                            shiny::selectInput('ecdf_type', 'Plot type',
+                                               c('All samples in one'='same_plot',
+                                                 'Individual samples'='ind_plot',
+                                                 'Combine samples'='ecdf_combine_plot')),
+                            shiny::uiOutput("ecdf_switch"),
+                            shiny::checkboxInput('ecdf_conf', label='Confidence bands', value=FALSE),
+                            shiny::numericInput('ecdf_xstart', 'X-axis start (Ma)',
+                                                value=200,min=0,max=4600,step=100),
+                            shiny::numericInput('ecdf_xstop', 'X-axis stop (Ma)',
+                                                value=4000,min=0,max=4600,step=100),
+                            shiny::numericInput('ecdf_xstep', 'X-axis step (Ma)', 200),
+                            shiny::checkboxInput("ecdf_legend", label = "Show legend", value = TRUE),
+                            shiny::numericInput('ecdf_width', 'Image Width (cm)', 15),
+                            shiny::numericInput('ecdf_height', 'Image Height (cm)', 15),
+                            shiny::downloadButton('download_ecdf_plot', 'Save Image')
+                          ),
+                          shiny::mainPanel(
+                            shiny::plotOutput(('ecdf_plot'))
+                          )
+                        )),
 
-  # Start of ECDF tab
-  shiny::tabPanel('ECDF', shiny::sidebarLayout(
-    shiny::sidebarPanel(
-      shiny::radioButtons('ecdf_input_type', 'Type',
-                          c('Age'='age',
-                            'Model age'='t_dm2')),
-      selectInput('ecdf_type', 'Plot type',
-                  c('All samples in one'='same_plot',
-                    'Individual samples'='ind_plot',
-                    'Combine samples'='ecdf_combine_plot')),
-      shiny::uiOutput("ecdf_switch"),
-      shiny::checkboxInput('ecdf_conf', label='Confidence bands', value=FALSE),
-      shiny::numericInput('ecdf_xstart', 'X-axis start (Ma)',
-                          value=200,min=0,max=4600,step=100),
-      shiny::numericInput('ecdf_xstop', 'X-axis stop (Ma)',
-                          value=4000,min=0,max=4600,step=100),
-      shiny::numericInput('ecdf_xstep', 'X-axis step (Ma)', 200),
-      shiny::checkboxInput("ecdf_legend", label = "Show legend", value = TRUE),
-      shiny::numericInput('ecdf_width', 'Image Width (cm)', 15),
-      shiny::numericInput('ecdf_height', 'Image Height (cm)', 15),
-      shiny::downloadButton('download_ecdf_plot', 'Save Image')
-    ),
-    shiny::mainPanel(
-      shiny::plotOutput(('ecdf_plot'))
-    )
-  )),
+                        # Start of UQ vs. tLQ tab
+                        shiny::tabPanel('UQ vs. LQ', shiny::sidebarLayout(
+                          shiny::sidebarPanel(
+                            shiny::radioButtons('uqlq_type', 'UQ vs. LQ type',
+                                                c('Age'='uqlq_age',
+                                                  'Model age'='uqlq_tdm')),
+                            shiny::uiOutput('uqlq_samples'),
+                            shiny::numericInput('uqlq_xstep', 'X step', 500),
+                            shiny::numericInput('uqlq_xstart', 'X-axis start (Ma)',
+                                                value=200,min=0,max=4600,step=100),
+                            shiny::numericInput('uqlq_xstop', 'X-axis stop (Ma)',
+                                                value=4000,min=0,max=4600,step=100),
+                            shiny::numericInput('uqlq_ystart', 'Y-axis start (Ma)',
+                                                value=200,min=0,max=4600,step=100),
+                            shiny::numericInput('uqlq_ystop', 'Y-axis stop (Ma)',
+                                                value=4000,min=0,max=4600,step=100),
+                            shiny::checkboxInput('uqlq_conf',
+                                                 label='Confidence limits',
+                                                 value=FALSE),
+                            shiny::checkboxInput('mixing_model',
+                                                 label='Add mixing model',
+                                                 value=FALSE),
+                            shiny::conditionalPanel(
+                              condition="input.mixing_model == true",
+                              shiny::numericInput('mu1', 'First mean', value=500),
+                              shiny::numericInput('sig1', 'First standard deviation',
+                                                  value=50),
+                              shiny::numericInput('mu2', 'Second mean', value=1000),
+                              shiny::numericInput('sig2', 'Second standard deviation',
+                                                  value=100)),
+                            shiny::tags$hr(),
+                            shiny::checkboxInput("uqlq_legend", label = "Show legend", value = TRUE),
+                            shiny::numericInput('uqlq_width', 'Image Width (cm)', 15),
+                            shiny::numericInput('uqlq_height', 'Image Height (cm)', 15),
+                            shiny::downloadButton('download_uqlq_plot', 'Save Image'),
+                            shiny::tags$hr()
+                          ),
+                          shiny::mainPanel(
+                            shiny::plotOutput(('uqlq'))
+                          )
+                        )),
 
-  # Start of UQ vs. tLQ tab
-  shiny::tabPanel('UQ vs. LQ', shiny::sidebarLayout(
-    shiny::sidebarPanel(
-      shiny::radioButtons('uqlq_type', 'UQ vs. LQ type',
-                          c('Age'='uqlq_age',
-                            'Model age'='uqlq_tdm')),
-      shiny::uiOutput('uqlq_samples'),
-      shiny::numericInput('uqlq_xstep', 'X step', 500),
-      shiny::numericInput('uqlq_xstart', 'X-axis start (Ma)',
-                          value=200,min=0,max=4600,step=100),
-      shiny::numericInput('uqlq_xstop', 'X-axis stop (Ma)',
-                          value=4000,min=0,max=4600,step=100),
-      shiny::numericInput('uqlq_ystart', 'Y-axis start (Ma)',
-                          value=200,min=0,max=4600,step=100),
-      shiny::numericInput('uqlq_ystop', 'Y-axis stop (Ma)',
-                          value=4000,min=0,max=4600,step=100),
-      shiny::checkboxInput('uqlq_conf',
-                           label='Confidence limits',
-                           value=FALSE),
-      shiny::checkboxInput('mixing_model',
-                           label='Add mixing model',
-                           value=FALSE),
-      shiny::conditionalPanel(
-        condition="input.mixing_model == true",
-        shiny::numericInput('mu1', 'First mean', value=500),
-        shiny::numericInput('sig1', 'First standard deviation',
-                            value=50),
-        shiny::numericInput('mu2', 'Second mean', value=1000),
-        shiny::numericInput('sig2', 'Second standard deviation',
-                            value=100)),
-      shiny::tags$hr(),
-      shiny::checkboxInput("uqlq_legend", label = "Show legend", value = TRUE),
-      shiny::numericInput('uqlq_width', 'Image Width (cm)', 15),
-      shiny::numericInput('uqlq_height', 'Image Height (cm)', 15),
-      shiny::downloadButton('download_uqlq_plot', 'Save Image'),
-      shiny::tags$hr()
-    ),
-    shiny::mainPanel(
-      shiny::plotOutput(('uqlq'))
-    )
-  )),
+                        # Start of Hf tab
+                        shiny::tabPanel('Lu-Hf', shiny::sidebarLayout(
+                          shiny::sidebarPanel(
+                            shiny::radioButtons('hf_type', 'Type',
+                                                c('Epsilon Hf'='ehf_plot',
+                                                  'Hf/Hf'='hfhf_plot')),
+                            shiny::uiOutput('hf_samples'),
+                            shiny::numericInput('hf_xstart', 'X-axis start (Ma)',
+                                                value=200,min=0,max=4600,step=100),
+                            shiny::numericInput('hf_xstop', 'X-axis stop (Ma)',
+                                                value=4000,min=0,max=4600,step=100),
+                            shiny::numericInput('hf_xstep', 'X step', 200),
+                            shiny::uiOutput("hf_switch"),
+                            shiny::tags$hr(),
+                            shiny::checkboxInput('error_bars',
+                                                 label = 'Add error bars',
+                                                 value = FALSE),
+                            shiny::conditionalPanel(
+                              condition = 'input.error_bars == true',
+                              shiny::checkboxInput('x_error_bars',
+                                                   label = 'X-direction error bars',
+                                                   value = TRUE),
+                              shiny::checkboxInput('y_error_bars',
+                                                   label = 'Y-direction error bars',
+                                                   value = TRUE)
+                            ),
+                            shiny::tags$hr(),
+                            shiny::checkboxInput('add_contours',
+                                                 label = 'Add contours',
+                                                 value = FALSE),
+                            shiny::uiOutput('hf_bandwidths'),
+                            shiny::uiOutput('contour_switch'),
+                            shiny::tags$hr(),
+                            shiny::checkboxInput("hf_legend", label = "Show legend", value = TRUE),
+                            shiny::numericInput('hf_width', 'Image Width (cm)', 15),
+                            shiny::numericInput('hf_height', 'Image Height (cm)', 15),
+                            shiny::downloadButton('download_hf_plot', 'Save Image'),
+                            shiny::tags$hr(),
+                            shiny::downloadButton('download_hf_table', 'Save Lu-Hf Table')
+                          ),
+                          shiny::mainPanel(
+                            shiny::plotOutput(('hf'))
+                          )
+                        )),
 
-  # Start of Hf tab
-  shiny::tabPanel('Lu-Hf', shiny::sidebarLayout(
-    shiny::sidebarPanel(
-      shiny::radioButtons('hf_type', 'Type',
-                          c('Epsilon Hf'='ehf_plot',
-                            'Hf/Hf'='hfhf_plot')),
-      shiny::uiOutput('hf_samples'),
-      shiny::numericInput('hf_xstart', 'X-axis start (Ma)',
-                          value=200,min=0,max=4600,step=100),
-      shiny::numericInput('hf_xstop', 'X-axis stop (Ma)',
-                          value=4000,min=0,max=4600,step=100),
-      shiny::numericInput('hf_xstep', 'X step', 200),
-      shiny::uiOutput("hf_switch"),
-      shiny::tags$hr(),
-      shiny::checkboxInput('error_bars',
-                           label = 'Add error bars',
-                           value = FALSE),
-      shiny::conditionalPanel(
-        condition = 'input.error_bars == true',
-        shiny::checkboxInput('x_error_bars',
-                             label = 'X-direction error bars',
-                             value = TRUE),
-        shiny::checkboxInput('y_error_bars',
-                             label = 'Y-direction error bars',
-                             value = TRUE)
-      ),
-      shiny::tags$hr(),
-      shiny::checkboxInput('add_contours',
-                           label = 'Add contours',
-                           value = FALSE),
-      shiny::uiOutput('hf_bandwidths'),
-      shiny::uiOutput('contour_switch'),
-      shiny::tags$hr(),
-      shiny::checkboxInput("hf_legend", label = "Show legend", value = TRUE),
-      shiny::numericInput('hf_width', 'Image Width (cm)', 15),
-      shiny::numericInput('hf_height', 'Image Height (cm)', 15),
-      shiny::downloadButton('download_hf_plot', 'Save Image'),
-      shiny::tags$hr(),
-      shiny::downloadButton('download_hf_table', 'Save Lu-Hf Table')
-    ),
-    shiny::mainPanel(
-      shiny::plotOutput(('hf'))
-    )
-  )),
+                        # Start of likeness tab
+                        shiny::tabPanel('Likeness', shiny::sidebarLayout(
+                          shiny::sidebarPanel(
+                            shiny::radioButtons('likeness_type', 'Type',
+                                                c('1d (age)'='1d',
+                                                  '2d (age and eHf)'='2d',
+                                                  'Combine'='combine')),
+                            shiny::uiOutput('likeness_samples'),
+                            shiny::numericInput('likeness_age_bw', 'Age bandwidth', 30),
+                            shiny::uiOutput('likeness_bw'),
+                            shiny::downloadButton('download_likeness_table', 'Save Table')
+                          ),
+                          shiny::mainPanel(
+                            shiny::tableOutput('likeness')
+                          )
+                        )),
 
-  # Start of likeness tab
-  shiny::tabPanel('Likeness', shiny::sidebarLayout(
-    shiny::sidebarPanel(
-      shiny::radioButtons('likeness_type', 'Type',
-                          c('1d (age)'='1d',
-                            '2d (age and eHf)'='2d',
-                            'Combine'='combine')),
-      shiny::uiOutput('likeness_samples'),
-      shiny::numericInput('likeness_age_bw', 'Age bandwidth', 30),
-      shiny::uiOutput('likeness_bw'),
-      shiny::downloadButton('download_likeness_table', 'Save Table')
-    ),
-    shiny::mainPanel(
-      shiny::tableOutput('likeness')
-    )
-  )),
+                        # Start of O-parameter age tab
+                        shiny::tabPanel('1-O', shiny::sidebarLayout(
+                          shiny::sidebarPanel(
+                            shiny::radioButtons('o_type', 'Type',
+                                                c('Age'='age',
+                                                  'Model age'='tdm',
+                                                  'Combine' ='combine')),
+                            shiny::uiOutput('o_samples'),
+                            shiny::downloadButton('download_o_table', 'Save Table'),
+                            shiny::tags$hr(),
+                            shiny::checkboxInput("o_fig", label = "Graphical", value = FALSE),
+                            shiny::conditionalPanel(
+                              condition = 'input.o_fig == true',
+                              shiny::numericInput('o_width', 'Image Width (cm)', 15),
+                              shiny::numericInput('o_height', 'Image Height (cm)', 15),
+                              shiny::downloadButton('download_o_plot', 'Save Image')
+                            )
+                          ),
+                          shiny::mainPanel(
+                            shiny::uiOutput('o_switch')
+                          )
+                        )),
 
-  # Start of O-parameter age tab
-  shiny::tabPanel('1-O', shiny::sidebarLayout(
-    shiny::sidebarPanel(
-      shiny::radioButtons('o_type', 'Type',
-                          c('Age'='age',
-                            'Model age'='tdm',
-                            'Combine' ='combine')),
-      shiny::uiOutput('o_samples'),
-      shiny::downloadButton('download_o_table', 'Save Table'),
-      shiny::tags$hr(),
-      shiny::checkboxInput("o_fig", label = "Graphical", value = FALSE),
-      shiny::conditionalPanel(
-        condition = 'input.o_fig == true',
-        shiny::numericInput('o_width', 'Image Width (cm)', 15),
-        shiny::numericInput('o_height', 'Image Height (cm)', 15),
-        shiny::downloadButton('download_o_plot', 'Save Image')
-      )
-    ),
-    shiny::mainPanel(
-      shiny::uiOutput('o_switch')
-    )
-  )),
-
-  # Start of Reimink tab
-  shiny::tabPanel('Reimink', shiny::sidebarLayout(
-    shiny::sidebarPanel(
-      shiny::uiOutput('reimink_samples'),
-      shiny::numericInput('reimink_step', 'Chord step (My)', 100),
-      shiny::tags$hr(),
-      shiny::numericInput('reimink_width', 'Image Width (cm)', 15),
-      shiny::numericInput('reimink_height', 'Image Height (cm)', 15),
-      shiny::downloadButton('download_reimink_plot', 'Save Image')
-    ),
-    shiny::mainPanel(
-      shiny::plotOutput('reimink_plot'),
-      shiny::tags$hr(),
-      shiny::tags$p('Lower: '),
-      shiny::verbatimTextOutput('reimink_maxima_lower'),
-      shiny::tags$p('Upper: '),
-      shiny::verbatimTextOutput('reimink_maxima_upper'),
-      shiny::tags$hr(),
-      shiny::downloadButton('download_reimink_table', 'Save likelihood data')
-    )
-  )),
-
-  # Start of Constants tab
-  shiny::tabPanel('Constants', shiny::fluidPage(
-    shiny::fluidRow(
-      column(4,
-             shiny::numericInput('lambda_lu',
-                                 '176Lu decay constant',
-                                 lambda_lu),
-             shiny::tags$hr(),
-             shiny::numericInput('luhf_chur',
-                                 '176Lu/177Hf CHUR',
-                                 luhf_chur),
-             shiny::numericInput('hfhf_chur',
-                                 '176Hf/177Hf CHUR',
-                                 hfhf_chur),
-             shiny::tags$hr(),
-             shiny::numericInput('luhf_dm',
-                                 '176Lu/177Hf DM',
-                                 luhf_dm),
-             shiny::numericInput('hfhf_dm',
-                                 '176hf/177Hf DM',
-                                 hfhf_dm),
-             shiny::numericInput('luhf_zrc',
-                                 '176Lu/177Hf',
-                                 luhf_zrc)
-      )
-    )
-  )),
-  # Start of Plot options tab
-  shiny::tabPanel('Plot options', shiny::fluidPage(
-    shiny::fluidRow(
-      column(4,
-             shiny::selectInput('font_name', 'Font',
-                                if (.Platform$OS.type == 'windows')
-                                  c('Helvetica' = 'sans', 'Courier' = 'mono',
-                                    'Times'= 'serif')
-                                else
-                                  c('Helvetica', 'Courier', 'Times')),
-             shiny::tags$hr(),
-             shiny::sliderInput('title_size', 'Axes title size (pts)',
-                                min = 5, max = 20, value = 10),
-             shiny::sliderInput('label_size', 'Axes label size (pts)',
-                                min = 5, max = 20, value = 7),
-             shiny::sliderInput('legend_size', 'Legend text size (pts)',
-                                min = 5, max = 20, value = 10),
-             shiny::sliderInput('strip_size', 'Panel text size (pts)',
-                                min = 5, max = 20, value = 7),
-             shiny::tags$hr()
-      )
-    )
-  ))
-  ))
+                        # Start of Reimink tab
+                        shiny::tabPanel('Reimink', shiny::sidebarLayout(
+                          shiny::sidebarPanel(
+                            shiny::uiOutput('reimink_samples'),
+                            shiny::numericInput('reimink_step', 'Chord step (My)', 100),
+                            shiny::tags$hr(),
+                            shiny::numericInput('reimink_width', 'Image Width (cm)', 15),
+                            shiny::numericInput('reimink_height', 'Image Height (cm)', 15),
+                            shiny::downloadButton('download_reimink_plot', 'Save Image')
+                          ),
+                          shiny::mainPanel(
+                            shiny::plotOutput('reimink_plot'),
+                            shiny::tags$hr(),
+                            shiny::tags$p('Lower: '),
+                            shiny::verbatimTextOutput('reimink_maxima_lower'),
+                            shiny::tags$p('Upper: '),
+                            shiny::verbatimTextOutput('reimink_maxima_upper'),
+                            shiny::tags$hr(),
+                            shiny::downloadButton('download_reimink_table', 'Save likelihood data')
+                          )
+                        )),
+                        shiny::navbarMenu('More',
+                        # Start of Constants tab
+                        shiny::tabPanel('Constants', shiny::fluidPage(
+                          shiny::fluidRow(
+                            shiny::column(4,
+                                          shiny::numericInput('lambda_lu',
+                                                              '176Lu decay constant',
+                                                              lambda_lu),
+                                          shiny::tags$hr(),
+                                          shiny::numericInput('luhf_chur',
+                                                              '176Lu/177Hf CHUR',
+                                                              luhf_chur),
+                                          shiny::numericInput('hfhf_chur',
+                                                              '176Hf/177Hf CHUR',
+                                                              hfhf_chur),
+                                          shiny::tags$hr(),
+                                          shiny::numericInput('luhf_dm',
+                                                              '176Lu/177Hf DM',
+                                                              luhf_dm),
+                                          shiny::numericInput('hfhf_dm',
+                                                              '176hf/177Hf DM',
+                                                              hfhf_dm),
+                                          shiny::numericInput('luhf_zrc',
+                                                              '176Lu/177Hf',
+                                                              luhf_zrc)
+                            )
+                          )
+                        )),
+                        # Start of Plot options tab
+                        shiny::tabPanel('Plot options', shiny::fluidPage(
+                          shiny::fluidRow(
+                            shiny::column(4,
+                                          shiny::selectInput('font_name', 'Font',
+                                                             if (.Platform$OS.type == 'windows')
+                                                               c('Helvetica' = 'sans', 'Courier' = 'mono',
+                                                                 'Times'= 'serif')
+                                                             else
+                                                               c('Helvetica', 'Courier', 'Times')),
+                                          shiny::tags$hr(),
+                                          shiny::sliderInput('title_size', 'Axes title size (pts)',
+                                                             min = 5, max = 20, value = 10),
+                                          shiny::sliderInput('label_size', 'Axes label size (pts)',
+                                                             min = 5, max = 20, value = 7),
+                                          shiny::sliderInput('legend_size', 'Legend text size (pts)',
+                                                             min = 5, max = 20, value = 10),
+                                          shiny::sliderInput('strip_size', 'Panel text size (pts)',
+                                                             min = 5, max = 20, value = 7),
+                                          shiny::tags$hr()
+                            )
+                          )
+                        )),
+                        shiny::tabPanel('About', shiny::fluidPage(
+                          shiny::fluidRow(
+                            shiny::column(12, align='center',
+                                          shiny::h3(paste('detzrcr', as.character(packageVersion('detzrcr')))),
+                                          shiny::tags$br(),
+                                          shiny::tags$div(class='header', checked=NA,
+                                                          shiny::tags$a(href='https://cran.r-project.org/package=detzrcr',
+                                                                        'https://cran.r-project.org/package=detzrcr'),
+                                                          shiny::tags$br(),
+                                                          shiny::tags$a(href='https://github.com/magnuskristoffersen/detzrcr',
+                                                                        'https://github.com/magnuskristoffersen/detzrcr'),
+                                                          shiny::tags$br(),
+                                                          shiny::tags$a(href='https://cran.r-project.org/web/packages/detzrcr/vignettes/detzrcr-vignette.html',
+                                                                        'https://cran.r-project.org/web/packages/detzrcr/vignettes/detzrcr-vignette.html')))
+                          ))
+                        ))
+))
 
 server <- shiny::shinyServer(function(input, output) {
   # Reactives
   csv_data <- shiny::reactive({
+    numbers <- NULL
+    n_conc <- NULL
+    n_hf <- NULL
     if (input$example_data == FALSE) {
       inFile <- input$file1
       if (is.null(inFile)) {
@@ -317,17 +341,20 @@ server <- shiny::shinyServer(function(input, output) {
       dat <- utils::read.csv(system.file("extdata", "Natal_group.csv",
                                            package="detzrcr"))
     }
+    names(dat) <- tolower(names(dat))
     if ('sample' %in% names(dat)) {
       dat$sample <- as.factor(dat$sample)
     }
+    n_analyses <- aggregate(dat$sample, by = dat['sample'], length)
     if (input$disc) {
       nas <- NULL
-      if (is.factor(dat$disc)) {
+      if ((is.character(dat$disc)) | (is.factor(dat$disc))) {
         dat$disc <- suppressWarnings(as.numeric(as.character(dat$disc)))
         nas <- which(is.na(dat$disc))
         dat <- dat[-nas, ]
         nas_txt <- paste(nas, collapse=', ')
-        nas_txt <- paste('Removed row(s)', nas_txt, 'because disc-column contain non-numeric values', sep=' ')
+        nas_txt <- paste('Removed row(s)', nas_txt, 'because disc-column
+                         contains non-numeric values', sep=' ')
         output$nas <- shiny::renderPrint({
           cat(nas_txt)
         })
@@ -337,9 +364,54 @@ server <- shiny::shinyServer(function(input, output) {
           cat('')
         })
       }
-      if (!is.null(input$disc_limit)) {
-        dat <-check_conc(dat, disc_lim=input$disc_limit)
+    }
+    if (input$sample_freq) {
+      if ('hfhf' %in% names(dat)) {
+        hf <- dat[which(!is.na(dat$hfhf)), ]
+        n_hf <- aggregate(hf$sample, by = hf['sample'], length)
       }
+      if ('ehf_i' %in% names(dat)) {
+        hf <- dat[which(!is.na(dat$ehf_i)), ]
+        n_hf <- aggregate(hf$sample, by = dat['sample'], length)
+      }
+      if (!is.null(input$disc_limit)) {
+        dat <- check_conc(dat, disc_lim=input$disc_limit)
+        n_conc <- aggregate(dat$sample, by = dat['sample'], length)
+      }
+      if (is.null(n_conc) &
+          is.null(n_hf)) {
+        output$numbers <- shiny::renderTable({
+          names(n_analyses) <- c('sample', 'n_analyses')
+          n_analyses
+        })
+      }
+      if (!is.null(n_conc) & (is.null(n_hf))) {
+        output$numbers <- shiny::renderTable({
+          numbers <- merge(n_analyses, n_conc, by = 'sample')
+          names(numbers) <- c('sample', 'n_analyses', 'n_conc')
+          numbers
+        })
+      }
+      if (!is.null(n_hf) & is.null(n_conc)) {
+        output$numbers <- shiny::renderTable({
+          numbers <- merge(n_analyses, n_hf, by = 'sample')
+          names(numbers) <- c('sample', 'n_analyses', 'n_hf')
+          numbers
+        })
+      }
+      if (!is.null(n_hf) & !is.null(n_conc)) {
+        output$numbers <- shiny::renderTable({
+          numbers <- merge(n_analyses, n_conc, by = 'sample')
+          numbers <- merge(numbers, n_hf, by = 'sample')
+          names(numbers) <- c('sample', 'n_analyses', 'n_conc', 'n_hf')
+          numbers
+        })
+      }
+    } else {
+      numbers <- NULL
+      output$numbers <- shiny::renderTable({
+        numbers
+      })
     }
     return(dat)
   })
@@ -378,6 +450,7 @@ server <- shiny::shinyServer(function(input, output) {
       }
     }
   })
+
   o_table <- shiny::reactive({
     new_data <- csv_data()
     if (!is.null(new_data)) {
@@ -389,21 +462,23 @@ server <- shiny::shinyServer(function(input, output) {
         input$luhf_dm,
         input$luhf_zrc
       )
-      hf_data <- calc_hf(new_data, constants=constants)
       if(!is.null(input$o_samples)) {
-        hf_data <- hf_data[hf_data$sample %in% input$o_samples, ]
-        hf_data$sample <- factor(hf_data$sample,
+        new_data <- new_data[new_data$sample %in% input$o_samples, ]
+        new_data$sample <- factor(new_data$sample,
                                   levels=input$o_samples)
       }
-      if (input$o_type == 'combine') {
-        combine_matrices(o_param_matrix_age(hf_data),
-                         o_param_matrix_tdm(hf_data))
+      if (input$o_type == 'age') {
+        o_param_matrix_age(new_data)
+
       } else {
-        if (input$o_type == 'age') {
-          o_param_matrix_age(hf_data)
+        if (input$o_type == 'tdm') {
+          hf_data <- calc_hf(new_data, constants=constants)
+          o_param_matrix_tdm(hf_data)
         } else {
-          if (input$o_type == 'tdm') {
-            o_param_matrix_tdm(hf_data)
+          if (input$o_type == 'combine') {
+            hf_data <- calc_hf(new_data, constants=constants)
+            combine_matrices(o_param_matrix_age(new_data),
+                             o_param_matrix_tdm(hf_data))
           }
         }
       }
@@ -421,13 +496,27 @@ server <- shiny::shinyServer(function(input, output) {
         input$luhf_dm,
         input$luhf_zrc
       )
-      new_data <- calc_hf(new_data, constants=constants)
+      if ('hfhf' %in% names(new_data)) {
+        hf_data <- calc_hf(new_data, constants=constants)
+      }
       if(!is.null(input$o_samples)) {
-        new_data <- new_data[new_data$sample %in% input$o_samples, ]
+        new_data <- new_data[new_data$sample %in% input$o_samples,]
         new_data$sample <- factor(new_data$sample,
                                   levels=input$o_samples)
+
+        if ('hfhf' %in% names(new_data)) {
+          hf_data <- hf_data[hf_data$sample %in% input$o_samples, ]
+          hf_data$sample <- factor(hf_data$sample,
+                                    levels=input$o_samples)
+        }
+
       }
-      plot_tile(new_data, type=input$o_type) +
+      if ('hfhf' %in% names(new_data)) {
+        dat <- list(age=new_data, hf=hf_data)
+      } else {
+        dat <- list(age=new_data)
+      }
+      plot_tile(dat, type=input$o_type) +
         plot_text_options(font_name = input$font_name,
                           title_size = input$title_size,
                           label_size = input$label_size,
@@ -697,10 +786,11 @@ server <- shiny::shinyServer(function(input, output) {
     }
   })
   # Output
-  output$head <- shiny::renderTable({
+  output$head <- DT::renderDataTable(DT::datatable({
     new_data <- csv_data()
-    utils::head(new_data)
-  })
+    new_data
+  }))
+
   output$dens_plot <- shiny::renderPlot({
     print(dens_plot())
   })
@@ -939,15 +1029,7 @@ server <- shiny::shinyServer(function(input, output) {
                        multiple=TRUE, selectize=TRUE)
   })
   output$o_samples <- shiny::renderUI({
-    constants <- c(
-      input$lambda_lu,
-      input$hfhf_chur,
-      input$luhf_chur,
-      input$hfhf_dm,
-      input$luhf_dm,
-      input$luhf_zrc
-    )
-    new_data <- calc_hf(csv_data(), constants=constants)
+    new_data <- csv_data()
     samples <- as.vector(unique(new_data$sample))
     shiny::selectInput('o_samples', 'Select samples', samples,
                        multiple=TRUE, selectize=TRUE)
@@ -961,7 +1043,7 @@ server <- shiny::shinyServer(function(input, output) {
       input$luhf_dm,
       input$luhf_zrc
     )
-    new_data <- calc_hf(csv_data(), constants=constants)
+    new_data <- csv_data()
     samples <- as.vector(unique(new_data$sample))
     shiny::selectInput('likeness_samples', 'Select samples', samples,
                        multiple=TRUE, selectize=TRUE)
@@ -990,7 +1072,7 @@ server <- shiny::shinyServer(function(input, output) {
     shiny::selectInput('reimink_samples', 'Select samples', samples,
                        multiple=FALSE, selectize=FALSE)
   })
-  output$reimink_maxima_lower <- renderText({
+  output$reimink_maxima_lower <- shiny::renderText({
     reimink_data <- reimink_table()
     if (!is.null(reimink_data)) {
         lower <- reimink_data[reimink_data$type == 'lower',]
@@ -998,7 +1080,7 @@ server <- shiny::shinyServer(function(input, output) {
         lower[lower_maxima, ]$x
     }
   })
-  output$reimink_maxima_upper <- renderText({
+  output$reimink_maxima_upper <- shiny::renderText({
     reimink_data <- reimink_table()
     if (!is.null(reimink_data)) {
         upper <- reimink_data[reimink_data$type == 'upper',]

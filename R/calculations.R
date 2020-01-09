@@ -533,15 +533,15 @@ quant_bounds <- function(dat, column='t_dm2', alpha=0.05) {
                         ties='ordered')$y
     lu <- stats::approx(x=sort_age_low$y, y=sort_age_low$x, xout=c(0.75),
                         ties='ordered')$y
-    if(is.na(lu)) lu <- max(sort_age_low$x)
+    if(is.na(lu)) lu <- 4560
     ul <- stats::approx(x=sort_age_high$y, y=sort_age_high$x, xout=c(0.25),
                         ties='ordered')$y
-    if(is.na(ul)) ul <- min(sort_age_high$x)
+    if(is.na(ul)) ul <- 0
     uu <- stats::approx(x=sort_age_high$y, y=sort_age_high$x, xout=c(0.75),
                         ties='ordered')$y
     lq_dist <- stats::quantile(column, probs=c(0.25), type=8, na.rm=TRUE)
     uq_dist <- stats::quantile(column, probs=c(0.75), type=8, na.rm=TRUE)
-    data.frame(x=lq_dist, y=uq_dist, ymin=ll, ymax=lu, xmin=ul, xmax=uu, sample)
+    data.frame(x=lq_dist, y=uq_dist, ymin=uu, ymax=lu, xmin=ul,  xmax=ll, sample)
   }
 }
 
@@ -618,7 +618,7 @@ tiling <- function(z) {
 #'
 make_tiling <- function(dat, type) {
   if (type == 'age') {
-    mat <- o_param_matrix_age(dat)
+    mat <- o_param_matrix_age(dat$age)
     mat <- mat[, rev(seq_len(ncol(mat)))]
     tile_mat <- data.frame(x=rownames(mat)[row(mat)], y=colnames(mat)[col(mat)],
                            z=as.factor(tiling(c(mat))))
@@ -626,7 +626,7 @@ make_tiling <- function(dat, type) {
     tile_mat$y <- factor(tile_mat$y, levels=colnames(mat))
   }
   if (type == 'tdm') {
-    mat <- o_param_matrix_tdm(dat)
+    mat <- o_param_matrix_tdm(dat$hf)
     mat <- mat[, rev(seq_len(ncol(mat)))]
     tile_mat <- data.frame(x=rownames(mat)[row(mat)], y=colnames(mat)[col(mat)],
                            z=as.factor(tiling(c(mat))))
@@ -634,8 +634,8 @@ make_tiling <- function(dat, type) {
     tile_mat$y <- factor(tile_mat$y, levels=colnames(mat))
   }
   if (type == 'combine') {
-    mat_age <- o_param_matrix_age(dat)
-    mat_tdm <- o_param_matrix_tdm(dat)
+    mat_age <- o_param_matrix_age(dat$age)
+    mat_tdm <- o_param_matrix_tdm(dat$hf)
     mat_age[lower.tri(mat_age)] <- NA
     mat <- mat_age
     mat[is.na(mat)] <- mat_tdm[is.na(mat)]
