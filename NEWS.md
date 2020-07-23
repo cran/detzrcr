@@ -1,3 +1,6 @@
+# detzrcr 0.3.1
+* Fixed bug where the sample frequency summary overwrites data.
+
 # detzrcr 0.3.0
 * Added Zenodo DOI.
 * Added a simple About page with version number, and links to the detzrcr CRAN

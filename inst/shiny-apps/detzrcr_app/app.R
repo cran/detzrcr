@@ -359,6 +359,9 @@ server <- shiny::shinyServer(function(input, output) {
           cat(nas_txt)
         })
       }
+      if (!is.null(input$disc_limit)) {
+        dat <- check_conc(dat, disc_lim=input$disc_limit)
+      }
       if (is.null(nas)) {
         output$nas <- shiny::renderPrint({
           cat('')
@@ -375,8 +378,8 @@ server <- shiny::shinyServer(function(input, output) {
         n_hf <- aggregate(hf$sample, by = dat['sample'], length)
       }
       if (!is.null(input$disc_limit)) {
-        dat <- check_conc(dat, disc_lim=input$disc_limit)
-        n_conc <- aggregate(dat$sample, by = dat['sample'], length)
+        dat1 <- check_conc(dat, disc_lim=input$disc_limit)
+        n_conc <- aggregate(dat1$sample, by = dat1['sample'], length)
       }
       if (is.null(n_conc) &
           is.null(n_hf)) {
